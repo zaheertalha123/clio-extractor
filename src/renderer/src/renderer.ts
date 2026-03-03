@@ -42,6 +42,97 @@ async function init(): Promise<void> {
   window.addEventListener('DOMContentLoaded', async () => {
     await checkAuthStatus()
     setupEventListeners()
+    setupUpdateToasts()
+  })
+}
+
+function setupUpdateToasts(): void {
+  if (!window.api?.updater) return
+
+  let toastEl: HTMLDivElement | null = null
+  let progressBarEl: HTMLDivElement | null = null
+
+  function ensureContainer(): HTMLDivElement {
+    let container = document.getElementById('update-toast-container')
+    if (!container) {
+      container = document.createElement('div')
+      container.id = 'update-toast-container'
+      document.body.appendChild(container)
+    }
+    return container as HTMLDivElement
+  }
+
+  function showToast(
+    title: string,
+    message: string,
+    options?: { showProgress?: boolean; progressPercent?: number; showRestart?: boolean; version?: string; isError?: boolean }
+  ): HTMLDivElement {
+    const container = ensureContainer()
+    if (toastEl) toastEl.remove()
+
+    toastEl = document.createElement('div')
+    toastEl.className = 'update-toast' + (options?.isError ? ' error' : '')
+
+    toastEl.innerHTML = `
+      <div class="update-toast-title">${title}</div>
+      <div class="update-toast-message">${message}</div>
+      ${options?.showProgress !== false && options?.showProgress ? '<div class="update-toast-progress"><div class="update-toast-progress-bar" style="width: 0%"></div></div>' : ''}
+      ${options?.showRestart ? '<div class="update-toast-actions"><button type="button" class="btn-secondary" data-dismiss>Later</button><button type="button" class="btn-primary" data-restart>Restart now</button></div>' : ''}
+    `
+
+    if (options?.showProgress) {
+      progressBarEl = toastEl.querySelector('.update-toast-progress-bar')
+      if (progressBarEl && options?.progressPercent != null) {
+        progressBarEl.style.width = `${options.progressPercent}%`
+      }
+    }
+
+    if (options?.showRestart) {
+      toastEl.querySelector('[data-restart]')?.addEventListener('click', () => {
+        window.api.updater.quitAndInstall()
+      })
+      toastEl.querySelector('[data-dismiss]')?.addEventListener('click', () => {
+        toastEl?.remove()
+        toastEl = null
+      })
+    }
+
+    container.appendChild(toastEl)
+    return toastEl
+  }
+
+  window.api.updater.onUpdateChecking(() => {
+    showToast('Checking for updates', 'Looking for the latest version...')
+  })
+
+  window.api.updater.onUpToDate(() => {
+    const upToDateToast = showToast('You\'re up to date', 'Clio Extractor is running the latest version.')
+    setTimeout(() => {
+      upToDateToast.remove()
+      if (toastEl === upToDateToast) toastEl = null
+    }, 2500)
+  })
+
+  window.api.updater.onUpdateAvailable((info) => {
+    showToast('Update available', `Downloading version ${info.version}...`, { showProgress: true })
+  })
+
+  window.api.updater.onDownloadProgress((progress) => {
+    if (progressBarEl) progressBarEl.style.width = `${progress.percent}%`
+  })
+
+  window.api.updater.onUpdateDownloaded((info) => {
+    progressBarEl = null
+    showToast('Update ready', `Version ${info.version} has been downloaded. Restart the app to install.`, {
+      showProgress: false,
+      showRestart: true,
+      version: info.version
+    })
+  })
+
+  window.api.updater.onUpdateError((info) => {
+    progressBarEl = null
+    showToast('Update failed', info.message || 'Could not check for updates.', { isError: true })
   })
 }
 
@@ -60,6 +151,7 @@ async function checkAuthStatus(): Promise<void> {
       if (loginView) loginView.style.display = 'none'
       if (appView) appView.style.display = 'flex'
       await loadCurrentUser()
+      await loadAppVersion()
       await loadPage('firm-revenue')
     } else {
       if (loginView) loginView.style.display = 'flex'
@@ -71,6 +163,17 @@ async function checkAuthStatus(): Promise<void> {
     showStatus('Error checking authentication status', 'error')
     if (loadingContainer) loadingContainer.style.display = 'none'
     if (loginContainer) loginContainer.style.display = 'block'
+  }
+}
+
+async function loadAppVersion(): Promise<void> {
+  const versionEl = document.getElementById('sidebar-version')
+  if (!versionEl || !window.api?.getAppVersion) return
+  try {
+    const version = await window.api.getAppVersion()
+    versionEl.textContent = `Version ${version}`
+  } catch {
+    versionEl.textContent = ''
   }
 }
 
@@ -266,10 +369,12 @@ function setupEventListeners(): void {
   const loginBtn = document.getElementById('loginBtn')
   const logoutBtn = document.getElementById('logoutBtn')
   const sidebarLogoutBtn = document.getElementById('sidebar-logout')
+  const sidebarCheckUpdatesBtn = document.getElementById('sidebar-check-updates')
 
   loginBtn?.addEventListener('click', handleLogin)
   logoutBtn?.addEventListener('click', handleLogout)
   sidebarLogoutBtn?.addEventListener('click', handleLogout)
+  sidebarCheckUpdatesBtn?.addEventListener('click', handleCheckForUpdates)
 
   document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
     el.addEventListener('click', async () => {
@@ -303,6 +408,23 @@ async function handleLogin(): Promise<void> {
     showStatus(`Login error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
     if (loginBtn) loginBtn.disabled = false
   }
+}
+
+async function handleCheckForUpdates(): Promise<void> {
+  const btn = document.getElementById('sidebar-check-updates') as HTMLButtonElement
+  if (!window.api?.updater) return
+  if (btn) {
+    btn.disabled = true
+    btn.textContent = 'Checking...'
+  }
+  await window.api.updater.checkForUpdates()
+  // Re-enable after a short delay; toasts show "You're up to date" or update result
+  setTimeout(() => {
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = 'Check for updates'
+    }
+  }, 3000)
 }
 
 async function handleLogout(): Promise<void> {

@@ -23,6 +23,17 @@ interface ResultsAPI {
   saveCsv: (content: string) => Promise<{ success: boolean; path?: string }>
 }
 
+interface UpdaterAPI {
+  onUpdateChecking: (callback: () => void) => void
+  onUpToDate: (callback: () => void) => void
+  onUpdateAvailable: (callback: (info: { version: string }) => void) => void
+  onUpdateDownloaded: (callback: (info: { version: string }) => void) => void
+  onDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => void
+  onUpdateError: (callback: (info: { message: string }) => void) => void
+  checkForUpdates: () => Promise<void>
+  quitAndInstall: () => Promise<void>
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -31,6 +42,8 @@ declare global {
       results: ResultsAPI
       openResultsWindow: (data: unknown[]) => Promise<void>
       openUnpaidBillsResults: (data: unknown[]) => Promise<void>
+      updater: UpdaterAPI
+      getAppVersion: () => Promise<string>
     }
   }
 }

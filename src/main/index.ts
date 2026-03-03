@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { writeFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/clio-extractor-logo.png?asset'
 import ClioAuthManager from './auth'
 import ClioAPIClient, { FirmRevenueFilters, FirmRevenueRow, UnpaidBillsFilters, UnpaidBillsRow } from './api-client'
@@ -12,6 +13,7 @@ loadEnv()
 // Initialize auth manager and API client globally
 let authManager: ClioAuthManager | null = null
 let apiClient: ClioAPIClient | null = null
+let mainWindow: BrowserWindow | null = null
 
 export function getAuthManager(): ClioAuthManager | null {
   return authManager
@@ -70,7 +72,7 @@ function openUnpaidBillsResultsWindow(data: UnpaidBillsRow[]): void {
 
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1100,
     height: 700,
     show: false,
@@ -81,24 +83,82 @@ function createWindow(): void {
       sandbox: false
     }
   })
+  mainWindow = win
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.maximize()
-    mainWindow.show()
+  win.on('ready-to-show', () => {
+    win.maximize()
+    win.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
+  })
+
+  win.on('close', (e) => {
+    e.preventDefault()
+    dialog
+      .showMessageBox(win, {
+        type: 'question',
+        buttons: ['Quit', 'Cancel'],
+        defaultId: 1,
+        title: 'Quit Clio Extractor',
+        message: 'Are you sure you want to quit?'
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          mainWindow = null
+          win.destroy()
+        }
+      })
   })
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    win.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function setupAutoUpdater(): void {
+  if (is.dev) return
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('updater:update-available', { version: info.version })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('updater:update-downloaded', { version: info.version })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('updater:download-progress', {
+      percent: progress.percent,
+      transferred: progress.transferred,
+      total: progress.total
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    mainWindow?.webContents.send('updater:error', { message: err.message })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    mainWindow?.webContents.send('updater:up-to-date')
+  })
+
+  // Check for updates after a short delay so the window is ready
+  setTimeout(() => {
+    mainWindow?.webContents.send('updater:checking')
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Update check failed:', err)
+    })
+  }, 3000)
 }
 
 // This method will be called when Electron has finished
@@ -174,7 +234,25 @@ app.whenReady().then(() => {
     openUnpaidBillsResultsWindow(data)
   })
 
+  ipcMain.handle('updater:quit-and-install', () => {
+    autoUpdater.quitAndInstall(false, true)
+  })
+
+  ipcMain.handle('updater:check-now', () => {
+    if (is.dev) {
+      mainWindow?.webContents.send('updater:up-to-date')
+      return
+    }
+    mainWindow?.webContents.send('updater:checking')
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Update check failed:', err)
+    })
+  })
+
+  ipcMain.handle('app:get-version', () => app.getVersion())
+
   createWindow()
+  setupAutoUpdater()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

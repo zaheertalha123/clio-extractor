@@ -1,10 +1,11 @@
 {
   "name": "clio-extractor",
-  "version": "1.0.0",
-  "description": "A minimal Electron application with TypeScript",
+  "version": "1.0.2",
+  "description": "A helper app to fetch data from Clio API and compile in reports",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Muhammad Talha",
+  "homepage": "https://github.com/zaheertalha123/c1i0-3xtr4ct0r-r3134s3s#readme",
+  "repository": "zaheertalha123/c1i0-3xtr4ct0r-r3134s3s",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

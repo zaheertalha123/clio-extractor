@@ -154,6 +154,16 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.sidebar-version {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 8px;
+}
+
+.nav-item-update {
+  margin-top: 4px;
+}
+
 .current-user {
   padding: 12px 0;
   margin-bottom: 8px;
@@ -358,4 +368,104 @@ code {
   color: var(--clio-blue);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 90%;
+}
+
+/* ===== Update toast (upper right) ===== */
+#update-toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+#update-toast-container .update-toast {
+  pointer-events: auto;
+  min-width: 280px;
+  max-width: 360px;
+  padding: 12px 16px;
+  background: var(--clio-white);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 62, 126, 0.18);
+  border: 1px solid rgba(0, 62, 126, 0.12);
+  font-size: 13px;
+  animation: update-toast-in 0.25s ease-out;
+}
+
+@keyframes update-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.update-toast .update-toast-title {
+  font-weight: 600;
+  color: var(--clio-blue);
+  margin-bottom: 4px;
+}
+
+.update-toast .update-toast-message {
+  color: var(--clio-text-light);
+  margin-bottom: 8px;
+}
+
+.update-toast .update-toast-progress {
+  height: 4px;
+  background: var(--clio-gray-light);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.update-toast .update-toast-progress-bar {
+  height: 100%;
+  background: var(--clio-blue);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.update-toast .update-toast-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.update-toast .update-toast-actions button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.update-toast .btn-primary {
+  background: var(--clio-blue);
+  color: white;
+}
+
+.update-toast .btn-primary:hover {
+  background: #003d7e;
+}
+
+.update-toast .btn-secondary {
+  background: var(--clio-gray-light);
+  color: var(--clio-text);
+}
+
+.update-toast .btn-secondary:hover {
+  background: #d0d8e0;
+}
+
+.update-toast.error .update-toast-title {
+  color: #c53030;
 }

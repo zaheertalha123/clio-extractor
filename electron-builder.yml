@@ -1,6 +1,12 @@
 appId: com.clio.extractor
 productName: Clio Extractor
 
+# Publish to GitHub Releases (generates latest.yml + exe for electron-updater)
+publish:
+  provider: github
+  owner: zaheertalha123
+  repo: c1i0-3xtr4ct0r-r3134s3s
+
 directories:
   buildResources: resources
 
@@ -14,8 +20,13 @@ win:
     - nsis
     - portable
 
+# No spaces in names: GitHub release URLs use the filename; spaces would cause 404 for electron-updater
 nsis:
+  artifactName: Clio-Extractor-Setup-${version}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   installerIcon: clio-extractor-logo.ico
   uninstallerIcon: clio-extractor-logo.ico
+
+portable:
+  artifactName: Clio-Extractor-Portable-${version}.${ext}

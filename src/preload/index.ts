@@ -22,7 +22,30 @@ const api = {
     saveCsv: (content: string, defaultName?: string) => ipcRenderer.invoke('dialog:save-csv', content, defaultName)
   },
   openResultsWindow: (data: unknown[]) => ipcRenderer.invoke('window:open-results', data),
-  openUnpaidBillsResults: (data: unknown[]) => ipcRenderer.invoke('window:open-unpaid-bills-results', data)
+  openUnpaidBillsResults: (data: unknown[]) => ipcRenderer.invoke('window:open-unpaid-bills-results', data),
+  updater: {
+    onUpdateChecking: (callback: () => void) => {
+      ipcRenderer.on('updater:checking', () => callback())
+    },
+    onUpToDate: (callback: () => void) => {
+      ipcRenderer.on('updater:up-to-date', () => callback())
+    },
+    onUpdateAvailable: (callback: (info: { version: string }) => void) => {
+      ipcRenderer.on('updater:update-available', (_event, info) => callback(info))
+    },
+    onUpdateDownloaded: (callback: (info: { version: string }) => void) => {
+      ipcRenderer.on('updater:update-downloaded', (_event, info) => callback(info))
+    },
+    onDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => {
+      ipcRenderer.on('updater:download-progress', (_event, progress) => callback(progress))
+    },
+    onUpdateError: (callback: (info: { message: string }) => void) => {
+      ipcRenderer.on('updater:error', (_event, info) => callback(info))
+    },
+    checkForUpdates: () => ipcRenderer.invoke('updater:check-now'),
+    quitAndInstall: () => ipcRenderer.invoke('updater:quit-and-install')
+  },
+  getAppVersion: () => ipcRenderer.invoke('app:get-version')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

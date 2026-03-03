@@ -1,0 +1,361 @@
+@import './base.css';
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: linear-gradient(135deg, #e6f0f9 0%, #ffffff 100%);
+  user-select: none;
+}
+
+/* ===== Login View ===== */
+#login-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 20px;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  background: var(--clio-white);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 62, 126, 0.1);
+  min-width: 400px;
+}
+
+.login-card .logo {
+  margin-bottom: 20px;
+  height: 100px;
+  width: auto;
+  border-radius: 8px;
+}
+
+.login-card .creator {
+  font-size: 22px;
+  margin-bottom: 24px;
+}
+
+#auth-section {
+  text-align: center;
+  padding: 0;
+}
+
+#login-container .tip {
+  margin-bottom: 16px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 14px;
+  color: var(--clio-text-light);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--clio-blue);
+  cursor: pointer;
+}
+
+#status-message {
+  margin-top: 20px;
+  font-size: 14px;
+  min-height: 20px;
+  text-align: center;
+}
+
+/* ===== App View (Sidebar + Content) ===== */
+#app-view {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+#sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--clio-blue);
+  color: var(--clio-white);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.sidebar-logo {
+  width: 48px;
+  height: auto;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--clio-white);
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--clio-white);
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.current-user {
+  padding: 12px 0;
+  margin-bottom: 8px;
+}
+
+.user-label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.user-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--clio-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-btn {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.logout-btn:hover {
+  background: rgba(220, 53, 69, 0.3);
+  color: var(--clio-white);
+}
+
+/* ===== Content Area ===== */
+#content-area {
+  flex: 1;
+  overflow: auto;
+  background: var(--clio-white);
+  padding: 32px;
+}
+
+#page-content {
+  max-width: 1200px;
+}
+
+/* ===== Firm Revenue / Unpaid Bills Forms ===== */
+.firm-revenue-form,
+.unpaid-bills-form {
+  margin-top: 24px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clio-text);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--clio-white);
+  color: var(--clio-text);
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--clio-blue);
+  box-shadow: 0 0 0 2px rgba(0, 62, 126, 0.15);
+}
+
+.form-actions {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.form-status {
+  font-size: 14px;
+  min-height: 20px;
+}
+
+/* ===== Page Styling ===== */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--clio-text);
+  margin: 0 0 8px 0;
+}
+
+.page-description {
+  font-size: 14px;
+  color: var(--clio-text-light);
+  margin: 0;
+}
+
+/* ===== Buttons ===== */
+.actions {
+  display: flex;
+  padding-top: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.button {
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  border: 2px solid transparent;
+  text-align: center;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 0 32px;
+  line-height: 44px;
+  font-size: 15px;
+  border-color: var(--clio-blue);
+  color: var(--clio-white);
+  background-color: var(--clio-blue);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 62, 126, 0.2);
+}
+
+.button:hover {
+  border-color: var(--clio-blue-light);
+  background-color: var(--clio-blue-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 62, 126, 0.3);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button.secondary {
+  border-color: var(--clio-gray-dark);
+  background-color: var(--clio-white);
+  color: var(--clio-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.button.secondary:hover {
+  border-color: var(--clio-text);
+  background-color: var(--clio-gray-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tip {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--clio-text-light);
+  font-weight: 400;
+}
+
+.creator {
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--clio-blue);
+  font-weight: 600;
+}
+
+.text {
+  font-size: 16px;
+  color: var(--clio-text);
+  font-weight: 500;
+  line-height: 24px;
+}
+
+code {
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background-color: var(--clio-gray-light);
+  color: var(--clio-blue);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 90%;
+}

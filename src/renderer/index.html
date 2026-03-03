@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Clio Extractor</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://app.clio.com"
+    />
+
+    <link href="./assets/main.css" type="text/css" rel="stylesheet" />
+  </head>
+
+  <body>
+    <!-- Login view (shown when not authenticated) -->
+    <div id="login-view">
+      <div class="login-card">
+        <img alt="Clio Extractor" class="logo" src="./assets/clio-extractor.jpg" />
+        <div class="creator">Clio Data Extractor</div>
+
+        <div id="auth-section">
+          <div id="login-container" style="display: none">
+            <p class="tip">Please login to your Clio account to continue</p>
+            <label class="checkbox-label">
+              <input type="checkbox" id="keepLoggedIn" />
+              Keep me logged in
+            </label>
+            <div class="actions">
+              <button id="loginBtn" class="button">Login with Clio</button>
+            </div>
+          </div>
+
+          <div id="loading-container">
+            <p class="tip">Checking authentication status...</p>
+          </div>
+        </div>
+
+        <div id="status-message"></div>
+      </div>
+    </div>
+
+    <!-- Main app view (shown when authenticated) -->
+    <div id="app-view" style="display: none">
+      <aside id="sidebar">
+        <div class="sidebar-header">
+          <img alt="Clio Extractor" class="sidebar-logo" src="./assets/clio-extractor.jpg" />
+          <h2 class="sidebar-title">Clio Extractor</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-page="firm-revenue">Firm Revenue</button>
+          <button class="nav-item" data-page="unpaid-bills">Unpaid Bills</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div id="current-user" class="current-user">
+            <span class="user-label">Signed in as</span>
+            <span id="user-name" class="user-name">Loading...</span>
+          </div>
+          <button id="sidebar-logout" class="nav-item logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <main id="content-area">
+        <div id="page-content">
+          <!-- Page content loaded dynamically -->
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./src/renderer.ts"></script>
+  </body>
+</html>

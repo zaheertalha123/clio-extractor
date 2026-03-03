@@ -1,0 +1,196 @@
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { join } from 'path'
+import { writeFileSync } from 'fs'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import icon from '../../resources/clio-extractor-logo.png?asset'
+import ClioAuthManager from './auth'
+import ClioAPIClient, { FirmRevenueFilters, FirmRevenueRow, UnpaidBillsFilters, UnpaidBillsRow } from './api-client'
+import { loadEnv } from './env-loader'
+
+loadEnv()
+
+// Initialize auth manager and API client globally
+let authManager: ClioAuthManager | null = null
+let apiClient: ClioAPIClient | null = null
+
+export function getAuthManager(): ClioAuthManager | null {
+  return authManager
+}
+
+function openResultsWindow(data: FirmRevenueRow[]): void {
+  const resultsWindow = new BrowserWindow({
+    width: 1200,
+    height: 700,
+    title: 'Firm Revenue Results',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  const rendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && rendererUrl) {
+    resultsWindow.loadURL(rendererUrl.replace(/\/?$/, '/') + 'results.html')
+  } else {
+    resultsWindow.loadFile(join(__dirname, '../renderer/results.html'))
+  }
+
+  resultsWindow.webContents.once('did-finish-load', () => {
+    resultsWindow.webContents.send('results-data', data)
+  })
+}
+
+function openUnpaidBillsResultsWindow(data: UnpaidBillsRow[]): void {
+  const resultsWindow = new BrowserWindow({
+    width: 1400,
+    height: 700,
+    title: 'Unpaid Bills Results',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  const ubRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && ubRendererUrl) {
+    resultsWindow.loadURL(ubRendererUrl.replace(/\/?$/, '/') + 'results-unpaid-bills.html')
+  } else {
+    resultsWindow.loadFile(join(__dirname, '../renderer/results-unpaid-bills.html'))
+  }
+
+  resultsWindow.webContents.once('did-finish-load', () => {
+    // Delay send to ensure renderer has registered IPC listener (new window loads async)
+    setTimeout(() => {
+      resultsWindow.webContents.send('results-data', data)
+    }, 500)
+  })
+}
+
+function createWindow(): void {
+  // Create the browser window.
+  const mainWindow = new BrowserWindow({
+    width: 1100,
+    height: 700,
+    show: false,
+    autoHideMenuBar: true,
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.maximize()
+    mainWindow.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  // HMR for renderer base on electron-vite cli.
+  // Load the remote URL for development or the local html file for production.
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.whenReady().then(() => {
+  // Set app user model id for windows
+  electronApp.setAppUserModelId('com.electron')
+
+  // Default open or close DevTools by F12 in development
+  // and ignore CommandOrControl + R in production.
+  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
+
+  // IPC test
+  ipcMain.on('ping', () => console.log('pong'))
+
+  // Initialize Clio Auth Manager and API Client
+  authManager = new ClioAuthManager()
+  apiClient = new ClioAPIClient(authManager)
+
+  ipcMain.handle('clio:get-current-user', async () => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getCurrentUser()
+  })
+
+  ipcMain.handle('clio:get-users', async () => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getUsers()
+  })
+
+  ipcMain.handle('clio:get-practice-areas', async () => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getPracticeAreas()
+  })
+
+  ipcMain.handle('clio:get-billable-clients', async () => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getBillableClients()
+  })
+
+  ipcMain.handle('clio:fetch-firm-revenue', async (_event, filters: FirmRevenueFilters) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getFirmRevenueData(filters)
+  })
+
+  ipcMain.handle('clio:fetch-unpaid-bills', async (_event, filters: UnpaidBillsFilters) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getUnpaidBillsData(filters)
+  })
+
+  ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
+    const baseName = defaultName || 'firm-revenue'
+    const result = await dialog.showSaveDialog({
+      title: 'Export CSV',
+      defaultPath: `${baseName}-${new Date().toISOString().slice(0, 10)}.csv`,
+      filters: [{ name: 'CSV', extensions: ['csv'] }]
+    })
+    if (!result.canceled && result.filePath) {
+      writeFileSync(result.filePath, csvContent, 'utf-8')
+      return { success: true, path: result.filePath }
+    }
+    return { success: false }
+  })
+
+  ipcMain.handle('window:open-results', (_event, data: FirmRevenueRow[]) => {
+    openResultsWindow(data)
+  })
+
+  ipcMain.handle('window:open-unpaid-bills-results', (_event, data: UnpaidBillsRow[]) => {
+    openUnpaidBillsResultsWindow(data)
+  })
+
+  createWindow()
+
+  app.on('activate', function () {
+    // On macOS it's common to re-create a window in the app when the
+    // dock icon is clicked and there are no other windows open.
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+// In this file you can include the rest of your app's specific main process
+// code. You can also put them in separate files and require them here.

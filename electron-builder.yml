@@ -1,0 +1,21 @@
+appId: com.clio.extractor
+productName: Clio Extractor
+
+directories:
+  buildResources: resources
+
+extraResources:
+  - from: .env.enc
+    to: .
+
+win:
+  icon: clio-extractor-logo.ico
+  target:
+    - nsis
+    - portable
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: clio-extractor-logo.ico
+  uninstallerIcon: clio-extractor-logo.ico

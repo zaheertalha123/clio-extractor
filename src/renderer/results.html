@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Firm Revenue Results</title>
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+  />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f5f7fa; }
+    h1 { margin-bottom: 16px; color: #003e7e; font-size: 20px; }
+    .toolbar { margin-bottom: 16px; }
+    .btn { padding: 10px 20px; background: #003e7e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #0055aa; }
+    .table-wrap { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e0e6ed; }
+    th { background: #003e7e; color: white; font-weight: 600; white-space: nowrap; }
+    tr:hover { background: #f8fafc; }
+    .empty { padding: 40px; text-align: center; color: #6b7c93; }
+    .count { margin-bottom: 12px; color: #6b7c93; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Firm Revenue Data</h1>
+  <div class="toolbar">
+    <button id="exportCsv" class="btn">Export CSV</button>
+  </div>
+  <div id="count" class="count"></div>
+  <div class="table-wrap">
+    <table id="dataTable">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display: none">No data to display</div>
+  </div>
+  <script>
+    let resultsData = [];
+
+    const COLS = [
+      'month', 'originatingAttorney', 'responsibleAttorney', 'biller', 'clientName',
+      'practiceArea', 'matterNumber', 'matterName', 'startDate', 'matterStatus',
+      'billableHours', 'invoiceNumber', 'invoiceDate', 'feesCollected'
+    ];
+
+    const COLS_DISPLAY = [
+      'Month', 'Originating Attorney', 'Responsible Attorney', 'Biller', 'Client Name',
+      'Practice Area', 'Matter Number', 'Matter Name', 'Start Date', 'Matter Status',
+      'Billable Hours', 'Invoice #', 'Invoice Date', 'Fees Collected'
+    ];
+
+    window.api.results.onResultsData((data) => {
+      resultsData = data || [];
+      renderTable();
+    });
+
+    function renderTable() {
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      const empty = document.getElementById('empty');
+      const count = document.getElementById('count');
+
+      count.textContent = `${resultsData.length} record(s)`;
+
+      if (resultsData.length === 0) {
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+
+      thead.innerHTML = '<tr>' + COLS_DISPLAY.map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+      tbody.innerHTML = resultsData.map(row =>
+        '<tr>' + COLS.map(c => {
+          const val = row[c];
+          return `<td>${val !== undefined && val !== null ? String(val) : ''}</td>`;
+        }).join('') + '</tr>'
+      ).join('');
+    }
+
+    function toCsv() {
+      if (resultsData.length === 0) return '';
+      const header = COLS_DISPLAY.map(h => `"${h.replace(/"/g, '""')}"`).join(',');
+      const rows = resultsData.map(row =>
+        COLS.map(c => {
+          const val = row[c];
+          const str = val !== undefined && val !== null ? String(val) : '';
+          return `"${str.replace(/"/g, '""')}"`;
+        }).join(',')
+      );
+      return [header, ...rows].join('\r\n');
+    }
+
+    document.getElementById('exportCsv').addEventListener('click', async () => {
+      const csv = toCsv();
+      if (!csv) return;
+      const result = await window.api.results.saveCsv(csv);
+      if (result?.success) {
+        alert(`Exported successfully to:\n${result.path}`);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import {
   setUnpaidBillsStatus
 } from './unpaid-bills'
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
+import logoUrl from '../assets/clio-extractor-logo.png'
 
 type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills'
 
@@ -44,7 +45,7 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
 function getHomePageHtml(): string {
   return `
     <div class="home-page">
-      <img alt="Clio Extractor" class="home-logo" src="./assets/clio-extractor-logo.png" />
+      <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
       <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Firm Revenue or Unpaid Bills.</p>
     </div>

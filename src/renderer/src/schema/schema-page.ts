@@ -2,15 +2,18 @@ import type { SchemaField } from './types'
 import { escapeHtml } from './utils'
 import { SCHEMA_TILES, SCHEMA_FILES, getFieldsForEntity } from './data'
 import { buildSchemaTreeHtml, attachSchemaTreeListeners } from './tree-view'
+import matterImg from '../../assets/matter.png'
+import activityImg from '../../assets/activity.png'
+import billImg from '../../assets/bill.png'
 
 const TILE_IMAGE: Record<string, string> = {
-  Matters: './assets/matter.png',
-  Activities: './assets/activity.png',
-  Bill: './assets/bill.png'
+  Matters: matterImg,
+  Activities: activityImg,
+  Bill: billImg
 }
 
 function getTileImage(tileName: string): string {
-  return TILE_IMAGE[tileName] ?? './assets/matter.png'
+  return TILE_IMAGE[tileName] ?? matterImg
 }
 
 export function getSchemaPageHtml(): string {

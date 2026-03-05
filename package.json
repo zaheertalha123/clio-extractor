@@ -1,6 +1,6 @@
 {
   "name": "clio-extractor",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A helper app to fetch data from Clio API and compile in reports",
   "main": "./out/main/index.js",
   "author": "Muhammad Talha",

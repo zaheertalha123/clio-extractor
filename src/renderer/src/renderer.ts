@@ -10,8 +10,9 @@ import {
   getUnpaidBillsFilters,
   setUnpaidBillsStatus
 } from './unpaid-bills'
+import { getSchemaPageHtml, setupSchemaListeners } from './schema'
 
-type PageId = 'firm-revenue' | 'unpaid-bills'
+type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -22,6 +23,14 @@ interface CachedOptions {
 let cachedOptions: CachedOptions | null = null
 
 const PAGES: Record<PageId, { title: string; description: string }> = {
+  home: {
+    title: 'Home',
+    description: 'Welcome to Clio Extractor.'
+  },
+  schema: {
+    title: 'Schema',
+    description: 'Browse and explore Clio API schema tiles.'
+  },
   'firm-revenue': {
     title: 'Firm Revenue',
     description: 'Extract and analyze firm revenue data from Clio.'
@@ -32,7 +41,19 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   }
 }
 
+function getHomePageHtml(): string {
+  return `
+    <div class="home-page">
+      <img alt="Clio Extractor" class="home-logo" src="./assets/clio-extractor-logo.png" />
+      <h1 class="home-title">Clio Extractor</h1>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Firm Revenue or Unpaid Bills.</p>
+    </div>
+  `
+}
+
 function renderPageContent(pageId: PageId): string {
+  if (pageId === 'home') return getHomePageHtml()
+  if (pageId === 'schema') return getSchemaPageHtml()
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
@@ -152,7 +173,7 @@ async function checkAuthStatus(): Promise<void> {
       if (appView) appView.style.display = 'flex'
       await loadCurrentUser()
       await loadAppVersion()
-      await loadPage('firm-revenue')
+      await loadPage('home')
     } else {
       if (loginView) loginView.style.display = 'flex'
       if (appView) appView.style.display = 'none'
@@ -203,11 +224,21 @@ async function loadPage(pageId: PageId): Promise<void> {
 
   contentArea.innerHTML = renderPageContent(pageId)
 
-  document.querySelectorAll('.nav-item:not(.logout-btn)').forEach((el) => {
+  document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
     el.classList.toggle('active', (el as HTMLElement).dataset.page === pageId)
   })
 
-  if (pageId === 'firm-revenue') {
+  if (pageId === 'home') {
+    // No options or listeners to load for home
+  } else if (pageId === 'schema') {
+    const onBackToTiles = (): void => {
+      const area = document.getElementById('page-content')
+      if (!area) return
+      area.innerHTML = getSchemaPageHtml()
+      setupSchemaListeners(onBackToTiles)
+    }
+    setupSchemaListeners(onBackToTiles)
+  } else if (pageId === 'firm-revenue') {
     await loadFirmRevenueOptions()
     setupFirmRevenueListeners()
   }
@@ -367,14 +398,43 @@ async function handleFetchRevenue(): Promise<void> {
 
 function setupEventListeners(): void {
   const loginBtn = document.getElementById('loginBtn')
-  const logoutBtn = document.getElementById('logoutBtn')
-  const sidebarLogoutBtn = document.getElementById('sidebar-logout')
   const sidebarCheckUpdatesBtn = document.getElementById('sidebar-check-updates')
+  const userMenuBtn = document.getElementById('sidebar-user-menu-btn')
+  const userMenu = document.getElementById('sidebar-user-menu')
+  const userMenuLogout = document.querySelector('[data-action="logout"]')
 
   loginBtn?.addEventListener('click', handleLogin)
-  logoutBtn?.addEventListener('click', handleLogout)
-  sidebarLogoutBtn?.addEventListener('click', handleLogout)
   sidebarCheckUpdatesBtn?.addEventListener('click', handleCheckForUpdates)
+
+  userMenuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const isOpen = userMenu?.getAttribute('hidden') == null
+    if (isOpen) {
+      userMenu?.setAttribute('hidden', '')
+      userMenuBtn?.setAttribute('aria-expanded', 'false')
+    } else {
+      userMenu?.removeAttribute('hidden')
+      userMenuBtn?.setAttribute('aria-expanded', 'true')
+    }
+  })
+
+  userMenuLogout?.addEventListener('click', () => {
+    userMenu?.setAttribute('hidden', '')
+    userMenuBtn?.setAttribute('aria-expanded', 'false')
+    handleLogout()
+  })
+
+  document.body.addEventListener('click', () => {
+    if (userMenu && userMenu.getAttribute('hidden') == null) {
+      userMenu.setAttribute('hidden', '')
+      userMenuBtn?.setAttribute('aria-expanded', 'false')
+    }
+  })
+
+  if (userMenu) userMenu.addEventListener('click', (e) => e.stopPropagation())
+
+  const sidebarHomeBtn = document.getElementById('sidebar-home')
+  sidebarHomeBtn?.addEventListener('click', () => loadPage('home'))
 
   document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
     el.addEventListener('click', async () => {
@@ -420,17 +480,11 @@ async function handleCheckForUpdates(): Promise<void> {
   await window.api.updater.checkForUpdates()
   // Re-enable after a short delay; toasts show "You're up to date" or update result
   setTimeout(() => {
-    if (btn) {
-      btn.disabled = false
-      btn.textContent = 'Check for updates'
-    }
+    if (btn) btn.disabled = false
   }, 3000)
 }
 
 async function handleLogout(): Promise<void> {
-  const sidebarLogoutBtn = document.getElementById('sidebar-logout') as HTMLButtonElement
-  if (sidebarLogoutBtn) sidebarLogoutBtn.disabled = true
-
   showStatus('Logging out...', 'info')
 
   try {
@@ -444,8 +498,6 @@ async function handleLogout(): Promise<void> {
     }
   } catch (error) {
     showStatus(`Logout error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
-  } finally {
-    if (sidebarLogoutBtn) sidebarLogoutBtn.disabled = false
   }
 }
 

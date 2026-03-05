@@ -15,7 +15,7 @@
     <!-- Login view (shown when not authenticated) -->
     <div id="login-view">
       <div class="login-card">
-        <img alt="Clio Extractor" class="logo" src="./assets/clio-extractor.jpg" />
+        <img alt="Clio Extractor" class="logo" src="./assets/clio-extractor-logo.png" />
         <div class="creator">Clio Data Extractor</div>
 
         <div id="auth-section">
@@ -43,23 +43,41 @@
     <div id="app-view" style="display: none">
       <aside id="sidebar">
         <div class="sidebar-header">
-          <img alt="Clio Extractor" class="sidebar-logo" src="./assets/clio-extractor.jpg" />
-          <h2 class="sidebar-title">Clio Extractor</h2>
+          <button type="button" id="sidebar-home" class="sidebar-header-btn" title="Home" aria-label="Go to home">
+            <img alt="Clio Extractor" class="sidebar-logo" src="./assets/clio-extractor-logo.png" />
+            <h2 class="sidebar-title">Clio Extractor</h2>
+          </button>
         </div>
 
         <nav class="sidebar-nav">
-          <button class="nav-item active" data-page="firm-revenue">Firm Revenue</button>
+          <button class="nav-item" data-page="schema">Schema</button>
+          <button class="nav-item" data-page="firm-revenue">Firm Revenue</button>
           <button class="nav-item" data-page="unpaid-bills">Unpaid Bills</button>
-          <button id="sidebar-check-updates" class="nav-item nav-item-update" type="button" title="Check for updates">Check for updates</button>
         </nav>
 
         <div class="sidebar-footer">
-          <div id="sidebar-version" class="sidebar-version" title="Current version"></div>
-          <div id="current-user" class="current-user">
-            <span class="user-label">Signed in as</span>
-            <span id="user-name" class="user-name">Loading...</span>
+          <div class="sidebar-version-row">
+            <span id="sidebar-version" class="sidebar-version" title="Current version"></span>
+            <button id="sidebar-check-updates" class="sidebar-update-btn" type="button" title="Check for updates" aria-label="Check for updates">
+              <svg class="sidebar-update-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+              </svg>
+            </button>
           </div>
-          <button id="sidebar-logout" class="nav-item logout-btn">Logout</button>
+          <div id="current-user" class="current-user-row">
+            <div class="current-user">
+              <span class="user-label">Signed in as</span>
+              <span id="user-name" class="user-name">Loading...</span>
+            </div>
+            <div class="user-menu-wrapper">
+              <button id="sidebar-user-menu-btn" class="user-menu-btn" type="button" title="Account menu" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
+                <svg class="user-menu-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <div id="sidebar-user-menu" class="user-menu-dropdown" role="menu" hidden>
+                <button type="button" class="user-menu-item" role="menuitem" data-action="logout">Logout</button>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 

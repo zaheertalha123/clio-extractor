@@ -8,4 +8,5 @@ out
 .env.local
 .env.*.local
 .env.enc
+tokens.txt
 .vscode

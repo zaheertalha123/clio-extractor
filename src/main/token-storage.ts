@@ -58,7 +58,10 @@ export function loadTokens(): StoredTokens | null {
   try {
     const encrypted = readFileSync(filePath)
     const decrypted = safeStorage.decryptString(encrypted)
-    return JSON.parse(decrypted) as StoredTokens
+    const tokens = JSON.parse(decrypted) as StoredTokens
+    // console.log('Tokens loaded from safe storage')
+    // console.log(tokens)
+    return tokens
   } catch (error) {
     console.error('Failed to load tokens (may be corrupted or from different machine):', error)
     clearTokens()

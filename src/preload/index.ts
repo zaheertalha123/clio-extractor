@@ -13,7 +13,8 @@ const api = {
     getPracticeAreas: () => ipcRenderer.invoke('clio:get-practice-areas'),
     getBillableClients: () => ipcRenderer.invoke('clio:get-billable-clients'),
     fetchFirmRevenue: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-firm-revenue', filters),
-    fetchUnpaidBills: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-unpaid-bills', filters)
+    fetchUnpaidBills: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-unpaid-bills', filters),
+    fetchCustomFields: (parentType: 'Contact' | 'Matter') => ipcRenderer.invoke('clio:fetch-custom-fields', parentType)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {

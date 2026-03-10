@@ -1,0 +1,17 @@
+/* Page styling (headers, titles) */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--clio-text);
+  margin: 0 0 8px 0;
+}
+
+.page-description {
+  font-size: 14px;
+  color: var(--clio-text-light);
+  margin: 0;
+}

@@ -1,0 +1,13 @@
+/* Global layout */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: linear-gradient(135deg, #e6f0f9 0%, #ffffff 100%);
+  user-select: none;
+}

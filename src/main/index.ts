@@ -212,6 +212,14 @@ app.whenReady().then(() => {
     return await apiClient.getUnpaidBillsData(filters)
   })
 
+  ipcMain.handle('clio:fetch-custom-fields', async (_event, parentType: string) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    if (parentType !== 'Contact' && parentType !== 'Matter') {
+      return { data: [], error: 'parentType must be Contact or Matter' }
+    }
+    return await apiClient.getCustomFields(parentType as 'Contact' | 'Matter')
+  })
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({

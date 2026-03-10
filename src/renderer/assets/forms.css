@@ -1,0 +1,53 @@
+/* Firm Revenue / Unpaid Bills forms */
+.firm-revenue-form,
+.unpaid-bills-form {
+  margin-top: 24px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clio-text);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--clio-white);
+  color: var(--clio-text);
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--clio-blue);
+  box-shadow: 0 0 0 2px rgba(0, 62, 126, 0.15);
+}
+
+.form-actions {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.form-status {
+  font-size: 14px;
+  min-height: 20px;
+}

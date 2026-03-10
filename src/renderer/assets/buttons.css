@@ -1,0 +1,88 @@
+/* Buttons and shared form/UI elements */
+.actions {
+  display: flex;
+  padding-top: 24px;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.button {
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  border: 2px solid transparent;
+  text-align: center;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 0 32px;
+  line-height: 44px;
+  font-size: 15px;
+  border-color: var(--clio-blue);
+  color: var(--clio-white);
+  background-color: var(--clio-blue);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 62, 126, 0.2);
+}
+
+.button:hover {
+  border-color: var(--clio-blue-light);
+  background-color: var(--clio-blue-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 62, 126, 0.3);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button.secondary {
+  border-color: var(--clio-gray-dark);
+  background-color: var(--clio-white);
+  color: var(--clio-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.button.secondary:hover {
+  border-color: var(--clio-text);
+  background-color: var(--clio-gray-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tip {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--clio-text-light);
+  font-weight: 400;
+}
+
+.creator {
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--clio-blue);
+  font-weight: 600;
+}
+
+.text {
+  font-size: 16px;
+  color: var(--clio-text);
+  font-weight: 500;
+  line-height: 24px;
+}
+
+code {
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background-color: var(--clio-gray-light);
+  color: var(--clio-blue);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 90%;
+}

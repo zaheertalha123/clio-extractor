@@ -1,0 +1,418 @@
+/* Schema page (image cards + dialog) */
+.schema-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.schema-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.schema-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 12px;
+  background: var(--clio-white);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.schema-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--clio-blue);
+  transform: translateY(-2px);
+}
+
+.schema-card-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  display: block;
+}
+
+.schema-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--clio-text);
+  text-align: center;
+}
+
+/* Schema dialog (sub-menu) */
+.schema-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.schema-dialog-overlay[hidden] {
+  display: none;
+}
+
+.schema-dialog {
+  background: var(--clio-white);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  min-width: 280px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.schema-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--clio-gray);
+  background: var(--clio-gray-light);
+}
+
+.schema-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--clio-text);
+}
+
+.schema-dialog-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--clio-text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.schema-dialog-close:hover {
+  background: var(--clio-gray);
+  color: var(--clio-text);
+}
+
+.schema-dialog-body {
+  padding: 12px 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.schema-dialog-item {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--clio-text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.schema-dialog-item:hover {
+  background: rgba(0, 62, 126, 0.08);
+  color: var(--clio-blue);
+}
+
+.schema-log-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--clio-gray-light);
+  border-radius: 8px;
+  border: 1px solid var(--clio-gray);
+}
+
+.schema-log-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clio-text);
+  margin: 0 0 8px 0;
+}
+
+.schema-log {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--clio-text);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.schema-log-line {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.schema-log-line:last-child {
+  border-bottom: none;
+}
+
+/* Schema detail (single resource) */
+.schema-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.schema-detail-header {
+  flex-shrink: 0;
+}
+
+.schema-back-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: var(--clio-white);
+  color: var(--clio-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.schema-back-btn:hover {
+  background: var(--clio-gray-light);
+  border-color: var(--clio-blue);
+  color: var(--clio-blue);
+}
+
+.schema-detail-title {
+  margin: 0 0 8px 0;
+}
+
+/* Custom fields table (API-loaded) */
+.custom-fields-detail #custom-fields-content {
+  margin-top: 8px;
+}
+
+.custom-fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--clio-white);
+  border: 1px solid var(--clio-gray);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.custom-fields-table th,
+.custom-fields-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--clio-gray-light);
+}
+
+.custom-fields-table th {
+  background: var(--clio-gray-light);
+  font-weight: 600;
+  color: var(--clio-text);
+}
+
+.custom-fields-table tbody tr:hover {
+  background: rgba(0, 62, 126, 0.04);
+}
+
+.custom-fields-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.custom-fields-table .text.error {
+  color: #c00;
+}
+
+.custom-field-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-field-name-text {
+  flex: 0 1 auto;
+}
+
+.picklist-info-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--clio-blue);
+  color: var(--clio-white);
+  font-size: 11px;
+  font-weight: bold;
+  cursor: help;
+  line-height: 1;
+}
+
+.picklist-info-icon:hover {
+  opacity: 0.9;
+}
+
+.picklist-options-tooltip {
+  position: fixed;
+  z-index: 1100;
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: min(320px, calc(100vh - 24px));
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: var(--clio-white);
+  border: 1px solid var(--clio-gray);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+}
+
+.picklist-options-tooltip-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clio-text);
+  margin-bottom: 8px;
+}
+
+.picklist-options-tooltip-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--clio-text);
+  line-height: 1.5;
+}
+
+.picklist-options-tooltip-list li {
+  margin-bottom: 4px;
+}
+
+.picklist-options-tooltip-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Schema tree (graphical, any nesting) */
+.schema-tree-wrap {
+  border: 1px solid var(--clio-gray);
+  border-radius: 10px;
+  background: var(--clio-white);
+  padding: 12px 0;
+  overflow-x: auto;
+}
+
+.schema-tree {
+  font-size: 14px;
+}
+
+.schema-tree-node {
+  position: relative;
+}
+
+.schema-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  min-height: 32px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.schema-tree-node:hover > .schema-tree-row {
+  background: var(--clio-gray-light);
+}
+
+.schema-tree-toggle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--clio-text-light);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.schema-tree-toggle:not(.schema-tree-toggle--leaf):hover {
+  color: var(--clio-blue);
+}
+
+.schema-tree-toggle--leaf {
+  cursor: default;
+  visibility: hidden;
+}
+
+.schema-tree-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--clio-text);
+  word-break: break-word;
+}
+
+.schema-tree-type {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: lowercase;
+}
+
+.schema-tree-type--string {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.schema-tree-type--number {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.schema-tree-type--boolean {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.schema-tree-type--object {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.schema-tree-type--array {
+  background: #fce4ec;
+  color: #c2185b;
+}
+
+.schema-tree-children {
+  border-left: 2px solid var(--clio-gray-light);
+  margin-left: 26px;
+  padding-left: 4px;
+}
+
+.schema-tree-node--depth-1 > .schema-tree-row .schema-tree-name { padding-left: 0; }
+.schema-tree-node--depth-2 > .schema-tree-row .schema-tree-name { padding-left: 0; }
+.schema-tree-node--depth-3 > .schema-tree-row .schema-tree-name { padding-left: 0; }
+.schema-tree-node--depth-4 > .schema-tree-row .schema-tree-name { padding-left: 0; }
+.schema-tree-node--depth-5 > .schema-tree-row .schema-tree-name { padding-left: 0; }

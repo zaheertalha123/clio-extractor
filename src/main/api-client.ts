@@ -118,6 +118,46 @@ class ClioAPIClient {
     return await this.makeRequest(endpoint)
   }
 
+  /** Custom field record from Clio API */
+  static readonly CUSTOM_FIELDS_FIELDS =
+    'id,etag,created_at,updated_at,name,parent_type,field_type,displayed,deleted,required,display_order,picklist_options{id,etag,created_at,updated_at,option,deleted_at}'
+
+  /**
+   * Fetch all custom fields with parent_type filter (e.g. Contact or Matter). Paginates until no more pages.
+   */
+  async getCustomFields(parentType: 'Contact' | 'Matter'): Promise<{
+    data: Array<Record<string, unknown>>
+    error?: string
+  }> {
+    const limit = 200
+    const order = 'id(asc)'
+    const allData: Array<Record<string, unknown>> = []
+    let pageToken: string | null = null
+
+    do {
+      const params = new URLSearchParams()
+      params.set('fields', ClioAPIClient.CUSTOM_FIELDS_FIELDS)
+      params.set('limit', String(limit))
+      params.set('order', order)
+      params.set('parent_type', parentType)
+      if (pageToken) params.set('page_token', pageToken)
+
+      const endpoint = `/custom_fields.json?${params.toString()}`
+      const result = await this.makeRequest(endpoint)
+      if (result.error) return { data: [], error: result.error }
+
+      const body = result.data as { data?: Array<Record<string, unknown>>; meta?: { paging?: { next_page_token?: string } } }
+      const pageData = body?.data ?? []
+      allData.push(...pageData)
+
+      const nextToken = body?.meta?.paging?.next_page_token ?? (body?.meta as { next_page_token?: string })?.next_page_token ?? null
+      const hasMore = nextToken && pageData.length === limit
+      pageToken = hasMore ? nextToken : null
+    } while (pageToken)
+
+    return { data: allData }
+  }
+
   async getUsers(params?: { fields?: string; limit?: number }): Promise<{ data: unknown; error?: string }> {
     const queryParams = new URLSearchParams()
     queryParams.append('fields', params?.fields || 'id,name')

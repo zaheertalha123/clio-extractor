@@ -16,6 +16,7 @@ interface ClioAPI {
   getBillableClients: () => Promise<{ data: unknown; error?: string }>
   fetchFirmRevenue: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchUnpaidBills: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
+  fetchCustomFields: (parentType: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
 }
 
 interface ResultsAPI {

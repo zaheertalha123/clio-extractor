@@ -25,6 +25,10 @@ export const SCHEMA_TILES: Array<{ name: string; items: string[] }> = [
     items: [
       'Bills', 'Billable Clients', 'Billable Matters', 'Interest Charges', 'Outstanding Client Balances'
     ]
+  },
+  {
+    name: 'Custom Fields',
+    items: ['Contact', 'Matter']
   }
 ]
 

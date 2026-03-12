@@ -1,7 +1,7 @@
 import type { SchemaField } from './types'
 import { escapeHtml } from './utils'
 import { SCHEMA_TILES, SCHEMA_FILES, getFieldsForEntity } from './data'
-import { buildSchemaTreeHtml, attachSchemaTreeListeners } from './tree-view'
+import { buildSchemaTreeHtml, attachSchemaTreeListeners, fillSchemaFetchedValues, attachSchemaValueExpandListeners } from './tree-view'
 import matterImg from '../../assets/matter.png'
 import activityImg from '../../assets/activity.png'
 import billImg from '../../assets/bill.png'
@@ -60,16 +60,37 @@ function escapeAttr(s: string): string {
 
 function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): string {
   const treeHtml = buildSchemaTreeHtml(fields)
+  const isActivity = entityName === 'Activity'
+  const activityIdsBlock = isActivity
+    ? `
+      <div id="schema-activity-ids-wrap" class="activity-ids-wrap" hidden>
+        <div class="activity-ids-scroll" id="schema-activity-ids-scroll"></div>
+      </div>`
+    : ''
   return `
     <div class="schema-detail-page">
       <div class="schema-detail-header">
         <button type="button" id="schema-detail-back" class="schema-back-btn" aria-label="Back to schema tiles">← Back</button>
         <h1 class="page-title schema-detail-title">${escapeHtml(entityName)}</h1>
-        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.</p>
+        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.${isActivity ? ' Enter a matter number and click Fetch to load activity IDs (latest first).' : ''}</p>
       </div>
+      <div class="schema-fetch-bar">
+        <label for="schema-matter-number" class="schema-fetch-label">Matter number</label>
+        <input type="text" id="schema-matter-number" class="schema-matter-input" placeholder="e.g. 16420.001" />
+        <button type="button" id="schema-fetch-btn" class="schema-fetch-btn">Fetch</button>
+        <span id="schema-fetch-message" class="schema-fetch-message" aria-live="polite"></span>
+      </div>
+      ${activityIdsBlock}
       <div class="schema-tree-wrap">
+        <div class="schema-tree-header">
+          <span class="schema-tree-header-spacer"></span>
+          <span class="schema-tree-header-name">Name</span>
+          <span class="schema-tree-header-type">Type</span>
+          <span class="schema-tree-header-value">Fetched Data</span>
+        </div>
         ${treeHtml}
       </div>
+      <div id="schema-value-popover" class="schema-tree-value-popover" hidden role="dialog" aria-label="List or object content"></div>
     </div>
   `
 }
@@ -98,6 +119,112 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
 
   const treeWrap = content.querySelector('.schema-tree-wrap')
   if (treeWrap) attachSchemaTreeListeners(treeWrap as HTMLElement)
+
+  const popoverEl = content.querySelector('#schema-value-popover')
+  if (treeWrap && popoverEl) attachSchemaValueExpandListeners(treeWrap as HTMLElement, popoverEl as HTMLElement)
+
+  const fetchBtn = content.querySelector('#schema-fetch-btn')
+  const matterInput = content.querySelector<HTMLInputElement>('#schema-matter-number')
+  const messageEl = content.querySelector('#schema-fetch-message')
+  const isActivity = entityName === 'Activity'
+  const activityIdsWrap = content.querySelector('#schema-activity-ids-wrap')
+  const activityIdsScroll = content.querySelector('#schema-activity-ids-scroll')
+
+  if (fetchBtn && matterInput && messageEl) {
+    fetchBtn.addEventListener('click', async () => {
+      const matterNumber = matterInput.value.trim()
+      if (!matterNumber) {
+        messageEl.textContent = 'Enter a matter number.'
+        if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+        return
+      }
+      ;(fetchBtn as HTMLButtonElement).disabled = true
+      messageEl.textContent = 'Fetching…'
+      if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+
+      try {
+        if (isActivity) {
+          const api = (window as Window & { api?: { clio?: { fetchActivityIdsByMatterDisplayNumber: (n: string) => Promise<{ data: Array<{ id: number; note?: string }>; error?: string }> } } }).api
+          if (!api?.clio?.fetchActivityIdsByMatterDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchActivityIdsByMatterDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (!data || data.length === 0) {
+            messageEl.textContent = 'No activities found for this matter.'
+            return
+          }
+          messageEl.textContent = `${data.length} activity ID${data.length === 1 ? '' : 's'} (latest first). Click an ID to load its data below.`
+          if (activityIdsScroll) {
+            activityIdsScroll.innerHTML = data
+              .map((a) => {
+                const noteStr = a.note != null ? String(a.note) : ''
+                const notePreview = noteStr.slice(0, 20)
+                const label = notePreview ? `${a.id} – ${escapeHtml(notePreview)}${noteStr.length > 20 ? '…' : ''}` : String(a.id)
+                return `<button type="button" class="activity-id-chip" data-activity-id="${a.id}">${label}</button>`
+              })
+              .join('')
+          }
+          if (activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = false
+        } else {
+          const api = (window as Window & { api?: { clio?: { fetchMatterByDisplayNumber: (n: string) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+          if (!api?.clio?.fetchMatterByDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchMatterByDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (data && treeWrap) {
+            fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+            messageEl.textContent = ''
+          } else {
+            messageEl.textContent = 'No matter data returned.'
+          }
+        }
+      } finally {
+        ;(fetchBtn as HTMLButtonElement).disabled = false
+      }
+    })
+  }
+
+  if (isActivity && activityIdsScroll && treeWrap && messageEl) {
+    activityIdsScroll.addEventListener('click', async (e) => {
+      const chip = (e.target as HTMLElement).closest('.activity-id-chip')
+      if (!chip) return
+      const idStr = (chip as HTMLElement).dataset.activityId
+      if (!idStr) return
+      const id = Number(idStr)
+      if (Number.isNaN(id)) return
+      const api = (window as Window & { api?: { clio?: { fetchActivityById: (n: number) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+      if (!api?.clio?.fetchActivityById) {
+        messageEl.textContent = 'API not available.'
+        return
+      }
+      messageEl.textContent = 'Loading activity…'
+      try {
+        const { data, error } = await api.clio.fetchActivityById(id)
+        if (error) {
+          messageEl.textContent = error
+          return
+        }
+        if (data) {
+          fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+          messageEl.textContent = ''
+        } else {
+          messageEl.textContent = 'No activity data returned.'
+        }
+      } finally {
+        messageEl.textContent = messageEl.textContent || ''
+      }
+    })
+  }
 }
 
 function openSchemaDialog(tileIndex: string, onBackToTiles: () => void): void {

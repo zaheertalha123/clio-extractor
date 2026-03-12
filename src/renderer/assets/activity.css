@@ -1,0 +1,113 @@
+/* Activity page: matter number input + horizontal scroll of activity IDs */
+.activity-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.activity-fetch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.activity-matter-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--clio-text);
+}
+
+.activity-matter-input {
+  width: 160px;
+  padding: 8px 12px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--clio-text);
+}
+
+.activity-matter-input:focus {
+  outline: none;
+  border-color: var(--clio-blue);
+  box-shadow: 0 0 0 2px rgba(0, 62, 126, 0.15);
+}
+
+.activity-fetch-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--clio-blue);
+  color: var(--clio-white);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.activity-fetch-btn:hover:not(:disabled) {
+  background: #003a6e;
+}
+
+.activity-fetch-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.activity-status {
+  font-size: 13px;
+  color: var(--clio-text-light);
+}
+
+.activity-status:empty {
+  display: none;
+}
+
+.activity-ids-wrap {
+  margin-top: 8px;
+}
+
+.activity-ids-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 12px 0;
+  min-height: 48px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.activity-ids-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.activity-ids-scroll::-webkit-scrollbar-track {
+  background: var(--clio-gray-light);
+  border-radius: 4px;
+}
+
+.activity-ids-scroll::-webkit-scrollbar-thumb {
+  background: var(--clio-gray);
+  border-radius: 4px;
+}
+
+.activity-id-chip {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: var(--clio-gray-light);
+  border: 1px solid var(--clio-gray);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clio-text);
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.activity-id-chip:hover {
+  background: rgba(0, 62, 126, 0.08);
+  border-color: var(--clio-blue);
+  color: var(--clio-blue);
+}

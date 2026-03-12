@@ -220,6 +220,21 @@ app.whenReady().then(() => {
     return await apiClient.getCustomFields(parentType as 'Contact' | 'Matter')
   })
 
+  ipcMain.handle('clio:fetch-matter-by-display-number', async (_event, displayNumber: string) => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getMatterByDisplayNumber(displayNumber)
+  })
+
+  ipcMain.handle('clio:fetch-activity-ids-by-matter-display-number', async (_event, displayNumber: string) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getActivityIdsByMatterDisplayNumber(displayNumber)
+  })
+
+  ipcMain.handle('clio:fetch-activity-by-id', async (_event, id: number) => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getActivityById(id)
+  })
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({

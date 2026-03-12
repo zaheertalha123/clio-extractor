@@ -88,17 +88,130 @@ class ClioAPIClient {
     fields?: string
     limit?: number
     offset?: number
+    query?: string
   }): Promise<{ data: unknown; error?: string }> {
     const queryParams = new URLSearchParams()
 
     if (params?.fields) queryParams.append('fields', params.fields)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
     if (params?.offset) queryParams.append('offset', params.offset.toString())
+    if (params?.query != null) queryParams.append('query', params.query)
 
-    const query = queryParams.toString()
-    const endpoint = query ? `/matters?${query}` : '/matters'
+    const qs = queryParams.toString()
+    const endpoint = qs ? `/matters?${qs}` : '/matters'
 
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Matter fields for getMatterByDisplayNumber.
+   * Clio allows only single-level nesting in fields (e.g. matter{client} not matter{client{date_of_birth}}).
+   * Nested resources use curly brackets with comma-separated fields; no second-level nesting.
+   */
+  private static readonly MATTER_DETAIL_FIELDS = [
+    'id', 'etag', 'number', 'display_number', 'custom_number', 'description', 'status', 'location',
+    'client_reference', 'client_id', 'billable', 'maildrop_address', 'billing_method', 'open_date',
+    'close_date', 'pending_date', 'created_at', 'updated_at', 'shared', 'has_tasks', 'last_activity_date',
+    'matter_stage_updated_at',
+    'currency{id,etag,code,sign,created_at,updated_at}',
+    'client{id,etag,name,first_name,middle_name,last_name,date_of_birth,type,created_at,updated_at,prefix,title,initials,clio_connect_email,locked_clio_connect_email,client_connect_user_id,primary_email_address,secondary_email_address,primary_phone_number,secondary_phone_number,ledes_client_id,has_clio_for_clients_permission,is_client,is_clio_for_client_user,is_co_counsel,is_bill_recipient,sales_tax_number,currency}',
+    'contingency_fee{id,etag,created_at,updated_at,show_contingency_award}',
+    'custom_rate{type,on_invoice,rates}',
+    'evergreen_retainer{id,created_at,updated_at,etag,minimum_threshold}',
+    'folder{id,etag,created_at,updated_at,deleted_at,type,locked,name,root}',
+    'group{client_connect_user,etag,id,name,type,updated_at}',
+    'matter_budget{id,etag,budget,include_expenses,notification_threshold,notify_users,created_at,updated_at}',
+    'matter_stage{id,etag,practice_area_id,name,order,created_at,updated_at}',
+    'originating_attorney{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'practice_area{id,etag,name,category,code,created_at,updated_at}',
+    'responsible_attorney{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'responsible_staff{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'statute_of_limitations{id,etag,name,status,description,description_text_type,priority,due_at,permission,completed_at,notify_completion,statute_of_limitations,time_estimated,created_at,updated_at,time_entries_count}',
+    'user{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'legal_aid_uk_matter{access_point,laa_office_number,ait_hearing_centre,attended_several_hearings_acting_for_multiple_clients,bill_ho_ucn,bill_number_of_attendances,bill_outcome_for_the_client_code,bill_stage_reached_code,case_reference,case_start_date,category,category_as_string,certificate_effective_date,certificate_expiration_date,certificate_number,certificate_scope,certification_type,change_of_solicitor,client_equal_opportunity_monitoring,client_type,clr_start_date,clr_total_profit_costs,cost_limit,counsel,court,court_id,court_id_code,created_at,delivery_location,dscc_number,duty_solicitor,etag,exceptional_case_funding_reference,expense_limit,fee_scheme,first_conducting_solicitor,id,irc_surgery,legacy_case,legal_representation_number,lh_total_disbursements,lh_start_date,lh_total_profit_costs,linked_matter_id,local_authority_number,maat_id,matter_type,matter_type_code,matter_type_1,matter_type_1_code,matter_type_1_title,matter_type_2,matter_type_2_code,matter_type_2_title,matter_types_combined,number_of_clients_seen_at_surgery,number_of_clients,party,police_station,post_transfer_clients_represented,postal_application_accepted,prior_authority_reference,prison_id,prison_law_prior_approval_number,procurement_area,region,related_claims_number,representation_order_date,schedule_reference_number,scheme_id,session_type,solicitor_type,standard_fee_category,surgery_clients_resulting_in_a_legal_help_matter_opened,surgery_clients,surgery_date,transfer_date,type_of_advice,type_of_service,ucn,ufn,undesignated_area_court,updated_at,user_type,youth_court}',
+    'attorney_allocation{id,etag,account_id,resource_id,resource_type,originating_attorney_allocation,responsible_attorney_allocation,created_at,updated_at}',
+    'account_balances{id,balance,type,name,currency_id}',
+    'matter_bill_recipients{id,etag,created_at,updated_at,recipient}',
+    'relationships{id,etag,description,created_at,updated_at}',
+    'custom_field_values{id,etag,field_name,created_at,updated_at,field_type,field_required,field_displayed,field_display_order,value,soft_deleted,custom_field,picklist_option,matter,contact}',
+    'custom_field_set_associations{id,etag,display_order,created_at,updated_at}',
+    'kyc_field_values{id,etag,field_name,field_label,created_at,updated_at,field_type,field_value,field_possible_values,group}',
+    'split_invoice_payers{id,contact_id,matter_id,send_to_bill_recipients,split_portion,etag,created_at,updated_at}'
+  ].join(',')
+
+  /**
+   * Activity Rates are custom rates per contact (single-level nesting only).
+   * GET /activity_rates – filter by contact_id to get rates for a matter's client.
+   */
+  async getActivityRates(params?: {
+    contact_id?: number
+    limit?: number
+    fields?: string
+  }): Promise<{ data: unknown; error?: string }> {
+    const queryParams = new URLSearchParams()
+    if (params?.contact_id != null) queryParams.append('contact_id', String(params.contact_id))
+    if (params?.limit != null) queryParams.append('limit', String(params.limit))
+    if (params?.fields) queryParams.append('fields', params.fields)
+    const qs = queryParams.toString()
+    const endpoint = qs ? `/activity_rates?${qs}` : '/activity_rates'
+    return await this.makeRequest(endpoint)
+  }
+
+  /** Fetch a single matter by display_number (list by query, then get by id). Returns matter object or error. */
+  async getMatterByDisplayNumber(displayNumber: string): Promise<{ data: Record<string, unknown> | null; error?: string }> {
+    const listRes = await this.getMatters({
+      query: displayNumber,
+      limit: 50,
+      fields: 'id,display_number'
+    })
+    if (listRes.error) return { data: null, error: listRes.error }
+    const listBody = listRes.data as { data?: Array<{ id: number; display_number?: string }> }
+    const items = listBody?.data ?? []
+    const match = items.find((m) => String(m.display_number) === String(displayNumber))
+    if (!match) {
+      return { data: null, error: `No matter found with display_number: ${displayNumber}` }
+    }
+
+    const customFieldsRes = await this.getCustomFields('Matter')
+    const customFieldIds: number[] = []
+    if (!customFieldsRes.error && Array.isArray(customFieldsRes.data)) {
+      for (const cf of customFieldsRes.data) {
+        const id = cf?.id != null ? Number(cf.id) : NaN
+        if (!Number.isNaN(id)) customFieldIds.push(id)
+      }
+    }
+
+    const matterParams = new URLSearchParams()
+    matterParams.set('fields', ClioAPIClient.MATTER_DETAIL_FIELDS)
+    customFieldIds.forEach((id) => matterParams.append('custom_field_ids[]', String(id)))
+    const matterRes = await this.makeRequest(`/matters/${match.id}?${matterParams.toString()}`)
+    if (matterRes.error) return { data: null, error: matterRes.error }
+    const matterBody = matterRes.data as { data?: Record<string, unknown> }
+    const matter = matterBody?.data ?? null
+    if (!matter) return { data: null }
+
+    const clientId =
+      (matter.client_id as number | undefined) ??
+      (matter.client != null && typeof matter.client === 'object' && 'id' in matter.client
+        ? (matter.client as { id?: number }).id
+        : undefined)
+    if (clientId != null) {
+      const activityRatesRes = await this.getActivityRates({
+        contact_id: clientId,
+        limit: 200,
+        fields: 'id,etag,rate,flat_rate,created_at,updated_at,contact_id,co_counsel_contact_id,user{id,etag,name,first_name,last_name,email},group{id,etag,name,type}'
+      })
+      if (!activityRatesRes.error && activityRatesRes.data != null) {
+        const activityRatesData = activityRatesRes.data as { data?: unknown[] }
+        const list = Array.isArray(activityRatesData?.data) ? activityRatesData.data : []
+        let customRate = matter.custom_rate as Record<string, unknown> | undefined
+        if (customRate == null || typeof customRate !== 'object') {
+          matter.custom_rate = customRate = {}
+        }
+        customRate.activity_rates = list
+      }
+    }
+    return { data: matter }
   }
 
   async getBills(params?: {
@@ -174,6 +287,107 @@ class ClioAPIClient {
 
   async getBillableClients(): Promise<{ data: unknown; error?: string }> {
     return await this.makeRequest('/billable_clients?fields=id,name&limit=200')
+  }
+
+  /**
+   * GET /activities – list activities with optional filters (e.g. matter_id).
+   * order: e.g. "date(desc)" for latest first.
+   */
+  async getActivities(params?: {
+    matter_id?: number
+    order?: string
+    limit?: number
+    fields?: string
+    page_token?: string
+  }): Promise<{ data: unknown; error?: string }> {
+    const queryParams = new URLSearchParams()
+    if (params?.matter_id != null) queryParams.append('matter_id', String(params.matter_id))
+    if (params?.order) queryParams.append('order', params.order)
+    if (params?.limit != null) queryParams.append('limit', String(params.limit))
+    if (params?.fields) queryParams.append('fields', params.fields)
+    if (params?.page_token) queryParams.append('page_token', params.page_token)
+    const qs = queryParams.toString()
+    const endpoint = qs ? `/activities?${qs}` : '/activities'
+    return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Resolve matter display_number to matter id, then fetch activities for that matter (latest to oldest).
+   * Returns id and note (first 10 chars of note used in UI).
+   */
+  async getActivityIdsByMatterDisplayNumber(displayNumber: string): Promise<{
+    data: Array<{ id: number; note?: string }>
+    error?: string
+  }> {
+    const listRes = await this.getMatters({
+      query: displayNumber,
+      limit: 50,
+      fields: 'id,display_number'
+    })
+    if (listRes.error) return { data: [], error: listRes.error }
+    const listBody = listRes.data as { data?: Array<{ id: number; display_number?: string }> }
+    const items = listBody?.data ?? []
+    const match = items.find((m) => String(m.display_number) === String(displayNumber))
+    if (!match) {
+      return { data: [], error: `No matter found with display_number: ${displayNumber}` }
+    }
+    const results: Array<{ id: number; note?: string }> = []
+    let pageToken: string | null = null
+    const limit = 200
+    do {
+      const res = await this.getActivities({
+        matter_id: match.id,
+        order: 'date(desc)',
+        limit,
+        fields: 'id,note',
+        page_token: pageToken ?? undefined
+      })
+      if (res.error) return { data: results.length ? results : [], error: res.error }
+      const body = res.data as { data?: Array<{ id: number; note?: string }>; meta?: { paging?: { next_page_token?: string } } }
+      const page = body?.data ?? []
+      for (const a of page) {
+        if (a?.id != null) results.push({ id: a.id, note: a.note })
+      }
+      const next = body?.meta?.paging?.next_page_token ?? (body?.meta as { next_page_token?: string })?.next_page_token ?? null
+      pageToken = next && page.length === limit ? next : null
+    } while (pageToken)
+    return { data: results }
+  }
+
+  /** Activity fields for getActivityById (single-level nesting only). */
+  private static readonly ACTIVITY_DETAIL_FIELDS = [
+    'id', 'etag', 'type', 'date', 'quantity_in_hours', 'rounded_quantity_in_hours', 'quantity', 'rounded_quantity',
+    'quantity_redacted', 'price', 'note', 'flat_rate', 'billed', 'on_bill', 'total', 'contingency_fee',
+    'created_at', 'updated_at', 'reference', 'non_billable', 'non_billable_total', 'no_charge', 'tax_setting',
+    'currency{id,etag,code,sign,created_at,updated_at}',
+    'activity_description{id,etag,name,visible_to_co_counsel,created_at,updated_at,default,type,utbms_activity_id,utbms_task_name,utbms_task_id,xero_service_code,accessible_to_user,category_type,currency}',
+    'expense_category{id,etag,name,rate,entry_type,created_at,updated_at,xero_expense_code,accessible_to_user,currency,tax_setting}',
+    'bill{id,etag,number,issued_at,created_at,due_at,tax_rate,secondary_tax_rate,updated_at,subject,purchase_order,type,memo,start_at,end_at,balance,state,kind,total,paid,paid_at,pending,due,discount_services_only,can_update,credits_issued,shared,last_sent_at,services_secondary_tax,services_sub_total,services_tax,services_taxable_sub_total,services_secondary_taxable_sub_total,taxable_sub_total,secondary_taxable_sub_total,sub_total,tax_sum,secondary_tax_sum,total_tax,available_state_transitions}',
+    'communication{id,etag,subject,body,type,date,time_entries_count,created_at,updated_at,received_at}',
+    'client_portal{id,etag,created_at,updated_at,unread_count,unread_notifiable_count}',
+    'matter{id,etag,number,display_number,custom_number,currency,description,status,location,client_reference,client_id,billable,maildrop_address,billing_method,open_date,close_date,pending_date,created_at,updated_at,shared,has_tasks,last_activity_date,matter_stage_updated_at}',
+    'matter_note{id,etag,type,subject,detail,detail_text_type,date,created_at,updated_at,time_entries_count}',
+    'contact_note{id,etag,type,subject,detail,detail_text_type,date,created_at,updated_at,time_entries_count}',
+    'subject{id,type,identifier,secondary_identifier,tertiary_identifier}',
+    'user{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'vendor{id,etag,name,first_name,middle_name,last_name,date_of_birth,type,created_at,updated_at,prefix,title,initials,clio_connect_email,locked_clio_connect_email,client_connect_user_id,primary_email_address,secondary_email_address,primary_phone_number,secondary_phone_number,ledes_client_id,has_clio_for_clients_permission,is_client,is_clio_for_client_user,is_co_counsel,is_bill_recipient,sales_tax_number,currency}',
+    'timer{id,etag,start_time,elapsed_time,created_at,updated_at}',
+    'utbms_expense{id,etag,name,code,description,type,utbms_set_id,created_at,updated_at}',
+    'task{id,etag}',
+    'text_message_conversation{id,etag}',
+    'document_version{id,document_id,etag,uuid,created_at,updated_at,filename,size,version_number,content_type,received_at,put_url,fully_uploaded}',
+    'calendar_entry{id,etag,calendar_owner_id}',
+    'legal_aid_uk_activity{activity_sub_category,advocacy,base_rate,bolt_ons,bolt_ons_summary,court,eligible_for_sqm,expert,form_of_civil_legal_service,id,is_custom_rate,json_key,region,tax_exclusive,uplift,user_type}'
+  ].join(',')
+
+  /**
+   * GET /activities/{id} – fetch a single activity by id with full fields.
+   */
+  async getActivityById(id: number): Promise<{ data: Record<string, unknown> | null; error?: string }> {
+    const res = await this.makeRequest(`/activities/${id}?fields=${encodeURIComponent(ClioAPIClient.ACTIVITY_DETAIL_FIELDS)}`)
+    if (res.error) return { data: null, error: res.error }
+    const body = res.data as { data?: Record<string, unknown> }
+    return { data: body?.data ?? null }
   }
 
   async getFirmRevenueData(filters: FirmRevenueFilters): Promise<{

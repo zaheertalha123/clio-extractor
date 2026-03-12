@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * Standalone script to fetch a matter from Clio API.
+ * Standalone script to fetch a matter from Clio API by display_number.
  * Reads CLIO_CLIENT_ID, CLIO_CLIENT_SECRET, REFRESH_TOKEN from .env (project root).
- * Refreshes the access token, then fetches the matter.
+ * Refreshes the access token, looks up the matter by display_number, then fetches full matter.
  *
- * Usage: node scripts/fetch-matter.js [matterId]
- * Default matter ID: 1660165687
+ * Usage: node scripts/fetch-matter.js [display_number]
+ * Default display_number: 16420.001
  */
 
 const fs = require('fs')
 const path = require('path')
 
-const MATTER_ID = process.argv[2] || '1767678323'
+const DISPLAY_NUMBER = process.argv[2] || '16420.001'
 const ROOT = path.join(__dirname, '..')
 const ENV_FILE = path.join(ROOT, '.env')
 const TOKEN_URL = 'https://app.clio.com/oauth/token'
-const MATTER_BASE_URL = `https://app.clio.com/api/v4/matters/${MATTER_ID}.json`
+const MATTERS_LIST_URL = 'https://app.clio.com/api/v4/matters.json'
 
 // All matter fields + one-level nested (per Clio API: second-level nested return defaults only)
 const MATTER_FIELDS = [
@@ -53,7 +53,6 @@ const MATTER_FIELDS = [
 const LEGAL_AID_UK_FIELDS = 'legal_aid_uk_matter{access_point,laa_office_number,ait_hearing_centre,attended_several_hearings_acting_for_multiple_clients,bill_ho_ucn,bill_number_of_attendances,bill_outcome_for_the_client_code,bill_stage_reached_code,case_reference,case_start_date,category,category_as_string,certificate_effective_date,certificate_expiration_date,certificate_number,certificate_scope,certification_type,change_of_solicitor,client_equal_opportunity_monitoring,client_type,clr_start_date,clr_total_profit_costs,cost_limit,counsel,court,court_id,court_id_code,created_at,delivery_location,dscc_number,duty_solicitor,etag,exceptional_case_funding_reference,expense_limit,fee_scheme,first_conducting_solicitor,id,irc_surgery,legacy_case,legal_representation_number,lh_total_disbursements,lh_start_date,lh_total_profit_costs,linked_matter_id,local_authority_number,maat_id,matter_type,matter_type_code,matter_type_1,matter_type_1_code,matter_type_1_title,matter_type_2,matter_type_2_code,matter_type_2_title,matter_types_combined,number_of_clients_seen_at_surgery,number_of_clients,party,police_station,post_transfer_clients_represented,postal_application_accepted,prior_authority_reference,prison_id,prison_law_prior_approval_number,procurement_area,region,related_claims_number,representation_order_date,schedule_reference_number,scheme_id,session_type,solicitor_type,standard_fee_category,surgery_clients_resulting_in_a_legal_help_matter_opened,surgery_clients,surgery_date,transfer_date,type_of_advice,type_of_service,ucn,ufn,undesignated_area_court,updated_at,user_type,youth_court}'
 
 const MATTER_FIELDS_FULL = [MATTER_FIELDS, LEGAL_AID_UK_FIELDS].join(',')
-const API_URL = `${MATTER_BASE_URL}?fields=${encodeURIComponent(MATTER_FIELDS_FULL)}`
 
 function parseEnv(filePath) {
   const env = {}
@@ -95,8 +94,13 @@ async function refreshAccessToken(clientId, clientSecret, refreshToken) {
   return data.access_token
 }
 
-async function fetchMatter(accessToken) {
-  const res = await fetch(API_URL, {
+async function findMatterIdByDisplayNumber(accessToken) {
+  const params = new URLSearchParams()
+  params.set('query', DISPLAY_NUMBER)
+  params.set('limit', '50')
+  params.set('fields', 'id,display_number')
+  const url = `${MATTERS_LIST_URL}?${params.toString()}`
+  const res = await fetch(url, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -105,7 +109,37 @@ async function fetchMatter(accessToken) {
   })
 
   if (!res.ok) {
-    console.error('API error:', res.status, res.statusText)
+    console.error('API error (list matters):', res.status, res.statusText)
+    const text = await res.text()
+    console.error(text)
+    process.exit(1)
+  }
+
+  const body = await res.json()
+  const data = body.data || []
+  const match = data.find((m) => String(m.display_number) === String(DISPLAY_NUMBER))
+  if (!match) {
+    console.error('No matter found with display_number:', DISPLAY_NUMBER)
+    if (data.length > 0) {
+      console.error('Query returned', data.length, 'matter(s); display_numbers:', data.map((m) => m.display_number).join(', '))
+    }
+    process.exit(1)
+  }
+  return match.id
+}
+
+async function fetchMatterById(accessToken, matterId) {
+  const url = `https://app.clio.com/api/v4/matters/${matterId}.json?fields=${encodeURIComponent(MATTER_FIELDS_FULL)}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!res.ok) {
+    console.error('API error (get matter):', res.status, res.statusText)
     const text = await res.text()
     console.error(text)
     process.exit(1)
@@ -132,9 +166,10 @@ async function main() {
 
   console.error('Refreshing access token...')
   const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken)
-  console.error('Fetching matter', MATTER_ID, '...')
-
-  const data = await fetchMatter(accessToken)
+  console.error('Looking up matter by display_number:', DISPLAY_NUMBER, '...')
+  const matterId = await findMatterIdByDisplayNumber(accessToken)
+  console.error('Found matter id:', matterId, '- fetching full matter...')
+  const data = await fetchMatterById(accessToken, matterId)
   console.log(JSON.stringify(data, null, 2))
 }
 

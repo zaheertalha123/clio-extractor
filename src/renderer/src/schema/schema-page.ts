@@ -58,6 +58,74 @@ function escapeAttr(s: string): string {
   return s.replace(/"/g, '&quot;')
 }
 
+/** Keys to exclude from schema CSV export (e.g. id, etag) at any nesting level. */
+const SCHEMA_CSV_EXCLUDE_KEYS = ['id', 'etag']
+
+function formatCsvValue(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) return JSON.stringify(value)
+  return String(value)
+}
+
+/**
+ * Build CSV rows from schema data (Matter, Activity, Bill, etc.) in schema field order: Field name, Fetched data.
+ * Excludes id, etag at all levels. Single objects flattened as parent-child. Arrays use first item only, first level.
+ */
+function buildSchemaCsvRows(data: Record<string, unknown>, schemaFields: SchemaField[]): Array<[string, string]> {
+  const rows: Array<[string, string]> = [['Field name', 'Fetched data']]
+  for (const field of schemaFields) {
+    if (SCHEMA_CSV_EXCLUDE_KEYS.includes(field.name)) continue
+    const value = data[field.name]
+    if (value === null || value === undefined) {
+      rows.push([field.name, ''])
+      continue
+    }
+    if (typeof value !== 'object') {
+      rows.push([field.name, String(value)])
+      continue
+    }
+    if (Array.isArray(value)) {
+      const first = value[0]
+      if (first === undefined) {
+        rows.push([field.name, ''])
+        continue
+      }
+      if (typeof first !== 'object' || first === null) {
+        rows.push([field.name, formatCsvValue(first)])
+        continue
+      }
+      const firstObj = first as Record<string, unknown>
+      const nestedOrder = field.fields && field.fields.length > 0 ? field.fields : Object.keys(firstObj)
+      for (const k of nestedOrder) {
+        const subName = typeof k === 'string' ? k : (k as SchemaField).name
+        if (SCHEMA_CSV_EXCLUDE_KEYS.includes(subName)) continue
+        const v = firstObj[subName]
+        rows.push([`${field.name}-${subName}`, formatCsvValue(v)])
+      }
+      continue
+    }
+    const obj = value as Record<string, unknown>
+    const nestedOrder = field.fields && field.fields.length > 0 ? field.fields.map((f) => f.name) : Object.keys(obj)
+    for (const k of nestedOrder) {
+      if (SCHEMA_CSV_EXCLUDE_KEYS.includes(k)) continue
+      const v = obj[k]
+      rows.push([`${field.name}-${k}`, formatCsvValue(v)])
+    }
+  }
+  return rows
+}
+
+function escapeCsvCell(cell: string): string {
+  if (!/[\n",]/.test(cell)) return cell
+  return `"${cell.replace(/"/g, '""')}"`
+}
+
+function buildSchemaCsvContent(data: Record<string, unknown>, schemaFields: SchemaField[]): string {
+  const rows = buildSchemaCsvRows(data, schemaFields)
+  return rows.map(([name, value]) => `${escapeCsvCell(name)},${escapeCsvCell(value)}`).join('\n')
+}
+
 function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): string {
   const treeHtml = buildSchemaTreeHtml(fields)
   const isActivity = entityName === 'Activity'
@@ -79,6 +147,7 @@ function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): str
     : isBills
       ? ' Enter a matter number and click Fetch to load bills for that matter (latest issued first).'
       : ''
+  const exportCsvToolbar = `<div class="schema-tree-toolbar"><span></span><button type="button" id="schema-export-csv-btn" class="schema-export-csv-btn" disabled>Export CSV</button></div>`
   return `
     <div class="schema-detail-page">
       <div class="schema-detail-header">
@@ -95,6 +164,7 @@ function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): str
       ${activityIdsBlock}
       ${billsBlock}
       <div class="schema-tree-wrap">
+        ${exportCsvToolbar}
         <div class="schema-tree-header">
           <span class="schema-tree-header-spacer"></span>
           <span class="schema-tree-header-name">Name</span>
@@ -145,6 +215,8 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
   const activityIdsScroll = content.querySelector('#schema-activity-ids-scroll')
   const billsWrap = content.querySelector('#schema-bills-wrap')
   const billsScroll = content.querySelector('#schema-bills-scroll')
+
+  let lastFetchedData: Record<string, unknown> | null = null
 
   if (fetchBtn && matterInput && messageEl) {
     fetchBtn.addEventListener('click', async () => {
@@ -227,14 +299,30 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
             return
           }
           if (data && treeWrap) {
+            lastFetchedData = data
             fillSchemaFetchedValues(treeWrap as HTMLElement, data)
             messageEl.textContent = ''
+            const exportCsvBtn = content.querySelector<HTMLButtonElement>('#schema-export-csv-btn')
+            if (exportCsvBtn) exportCsvBtn.disabled = false
           } else {
             messageEl.textContent = 'No matter data returned.'
           }
         }
       } finally {
         ;(fetchBtn as HTMLButtonElement).disabled = false
+      }
+    })
+  }
+
+  const exportCsvBtn = content.querySelector<HTMLButtonElement>('#schema-export-csv-btn')
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', async () => {
+      if (!lastFetchedData) return
+      const csvContent = buildSchemaCsvContent(lastFetchedData, fields)
+      const defaultName = `${entityName.toLowerCase().replace(/\s+/g, '-')}-export.csv`
+      const api = (window as Window & { api?: { results?: { saveCsv: (content: string, defaultName?: string) => Promise<{ success: boolean; path?: string }> } } }).api
+      if (api?.results?.saveCsv) {
+        await api.results.saveCsv(csvContent, defaultName)
       }
     })
   }
@@ -260,8 +348,11 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
           return
         }
         if (data) {
+          lastFetchedData = data
           fillSchemaFetchedValues(treeWrap as HTMLElement, data)
           messageEl.textContent = ''
+          const exportCsvBtn = content.querySelector<HTMLButtonElement>('#schema-export-csv-btn')
+          if (exportCsvBtn) exportCsvBtn.disabled = false
         } else {
           messageEl.textContent = 'No activity data returned.'
         }
@@ -292,8 +383,11 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
           return
         }
         if (data) {
+          lastFetchedData = data
           fillSchemaFetchedValues(treeWrap as HTMLElement, data)
           messageEl.textContent = ''
+          const exportCsvBtn = content.querySelector<HTMLButtonElement>('#schema-export-csv-btn')
+          if (exportCsvBtn) exportCsvBtn.disabled = false
         } else {
           messageEl.textContent = 'No bill data returned.'
         }
@@ -351,6 +445,16 @@ function getPicklistOptions(f: Record<string, unknown>): string[] {
   return opts
     .map((o: unknown) => (o != null && typeof o === 'object' && 'option' in o ? String((o as { option: unknown }).option ?? '') : ''))
     .filter(Boolean)
+}
+
+function getCustomFieldsExportToolbarHtml(): string {
+  return `<div class="schema-tree-toolbar custom-fields-export-toolbar"><span></span><button type="button" id="custom-fields-export-csv-btn" class="schema-export-csv-btn" disabled>Export CSV</button></div>`
+}
+
+function buildCustomFieldsCsvContent(rows: Array<{ fieldName: string; value: string }>): string {
+  const header = 'Field name,Fetched data'
+  const body = rows.map((r) => `${escapeCsvCell(r.fieldName)},${escapeCsvCell(r.value)}`).join('\n')
+  return `${header}\n${body}`
 }
 
 function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): string {
@@ -443,8 +547,23 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
       container.innerHTML = '<p class="text">No custom fields found.</p>'
       return
     }
-    container.innerHTML = getCustomFieldsTableHtml(data)
+    container.innerHTML = getCustomFieldsExportToolbarHtml() + getCustomFieldsTableHtml(data)
     attachPicklistTooltipListeners(container)
+
+    let lastFetchedCustomFieldsData: Array<{ fieldName: string; value: string }> | null = null
+
+    const exportCsvBtn = container.querySelector<HTMLButtonElement>('#custom-fields-export-csv-btn')
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', async () => {
+        if (!lastFetchedCustomFieldsData) return
+        const csvContent = buildCustomFieldsCsvContent(lastFetchedCustomFieldsData)
+        const defaultName = `custom-fields-${parentType.toLowerCase()}-export.csv`
+        const resultsApi = (window as Window & { api?: { results?: { saveCsv: (content: string, defaultName?: string) => Promise<{ success: boolean; path?: string }> } } }).api
+        if (resultsApi?.results?.saveCsv) {
+          await resultsApi.results.saveCsv(csvContent, defaultName)
+        }
+      })
+    }
 
     const fetchBtn = content.querySelector('#custom-fields-fetch-btn')
     const entityInput = content.querySelector<HTMLInputElement>('#custom-fields-entity-input')
@@ -494,11 +613,16 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
             }
             valueByFieldId[String(cfId)] = displayValue
           }
+          lastFetchedCustomFieldsData = data.map((f) => ({
+            fieldName: String(f.name ?? ''),
+            value: valueByFieldId[String(f.id)] ?? ''
+          }))
           container.querySelectorAll<HTMLElement>('.custom-field-fetched-value[data-custom-field-id]').forEach((cell) => {
             const id = cell.getAttribute('data-custom-field-id')
             cell.textContent = id ? (valueByFieldId[id] ?? '') : ''
           })
           messageEl.textContent = ''
+          if (exportCsvBtn) exportCsvBtn.disabled = false
         } finally {
           ;(fetchBtn as HTMLButtonElement).disabled = false
         }

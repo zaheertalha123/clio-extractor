@@ -1,7 +1,7 @@
 import type { SchemaField } from './types'
 import { escapeHtml } from './utils'
 import { SCHEMA_TILES, SCHEMA_FILES, getFieldsForEntity } from './data'
-import { buildSchemaTreeHtml, attachSchemaTreeListeners } from './tree-view'
+import { buildSchemaTreeHtml, attachSchemaTreeListeners, fillSchemaFetchedValues, attachSchemaValueExpandListeners } from './tree-view'
 import matterImg from '../../assets/matter.png'
 import activityImg from '../../assets/activity.png'
 import billImg from '../../assets/bill.png'
@@ -60,16 +60,50 @@ function escapeAttr(s: string): string {
 
 function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): string {
   const treeHtml = buildSchemaTreeHtml(fields)
+  const isActivity = entityName === 'Activity'
+  const isBills = entityName === 'Bills'
+  const activityIdsBlock = isActivity
+    ? `
+      <div id="schema-activity-ids-wrap" class="activity-ids-wrap" hidden>
+        <div class="activity-ids-scroll" id="schema-activity-ids-scroll"></div>
+      </div>`
+    : ''
+  const billsBlock = isBills
+    ? `
+      <div id="schema-bills-wrap" class="activity-ids-wrap" hidden>
+        <div class="activity-ids-scroll" id="schema-bills-scroll"></div>
+      </div>`
+    : ''
+  const descriptionSuffix = isActivity
+    ? ' Enter a matter number and click Fetch to load activity IDs (latest first).'
+    : isBills
+      ? ' Enter a matter number and click Fetch to load bills for that matter (latest issued first).'
+      : ''
   return `
     <div class="schema-detail-page">
       <div class="schema-detail-header">
         <button type="button" id="schema-detail-back" class="schema-back-btn" aria-label="Back to schema tiles">← Back</button>
         <h1 class="page-title schema-detail-title">${escapeHtml(entityName)}</h1>
-        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.</p>
+        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.${descriptionSuffix}</p>
       </div>
+      <div class="schema-fetch-bar">
+        <label for="schema-matter-number" class="schema-fetch-label">Matter number</label>
+        <input type="text" id="schema-matter-number" class="schema-matter-input" placeholder="e.g. 16420.001" />
+        <button type="button" id="schema-fetch-btn" class="schema-fetch-btn">Fetch</button>
+        <span id="schema-fetch-message" class="schema-fetch-message" aria-live="polite"></span>
+      </div>
+      ${activityIdsBlock}
+      ${billsBlock}
       <div class="schema-tree-wrap">
+        <div class="schema-tree-header">
+          <span class="schema-tree-header-spacer"></span>
+          <span class="schema-tree-header-name">Name</span>
+          <span class="schema-tree-header-type">Type</span>
+          <span class="schema-tree-header-value">Fetched Data</span>
+        </div>
         ${treeHtml}
       </div>
+      <div id="schema-value-popover" class="schema-tree-value-popover" hidden role="dialog" aria-label="List or object content"></div>
     </div>
   `
 }
@@ -98,6 +132,176 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
 
   const treeWrap = content.querySelector('.schema-tree-wrap')
   if (treeWrap) attachSchemaTreeListeners(treeWrap as HTMLElement)
+
+  const popoverEl = content.querySelector('#schema-value-popover')
+  if (treeWrap && popoverEl) attachSchemaValueExpandListeners(treeWrap as HTMLElement, popoverEl as HTMLElement)
+
+  const fetchBtn = content.querySelector('#schema-fetch-btn')
+  const matterInput = content.querySelector<HTMLInputElement>('#schema-matter-number')
+  const messageEl = content.querySelector('#schema-fetch-message')
+  const isActivity = entityName === 'Activity'
+  const isBills = entityName === 'Bills'
+  const activityIdsWrap = content.querySelector('#schema-activity-ids-wrap')
+  const activityIdsScroll = content.querySelector('#schema-activity-ids-scroll')
+  const billsWrap = content.querySelector('#schema-bills-wrap')
+  const billsScroll = content.querySelector('#schema-bills-scroll')
+
+  if (fetchBtn && matterInput && messageEl) {
+    fetchBtn.addEventListener('click', async () => {
+      const matterNumber = matterInput.value.trim()
+      if (!matterNumber) {
+        messageEl.textContent = 'Enter a matter number.'
+        if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+        if (isBills && billsWrap) (billsWrap as HTMLElement).hidden = true
+        return
+      }
+      ;(fetchBtn as HTMLButtonElement).disabled = true
+      messageEl.textContent = 'Fetching…'
+      if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+      if (isBills && billsWrap) (billsWrap as HTMLElement).hidden = true
+
+      try {
+        if (isActivity) {
+          const api = (window as Window & { api?: { clio?: { fetchActivityIdsByMatterDisplayNumber: (n: string) => Promise<{ data: Array<{ id: number; note?: string }>; error?: string }> } } }).api
+          if (!api?.clio?.fetchActivityIdsByMatterDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchActivityIdsByMatterDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (!data || data.length === 0) {
+            messageEl.textContent = 'No activities found for this matter.'
+            return
+          }
+          messageEl.textContent = `${data.length} activity ID${data.length === 1 ? '' : 's'} (latest first). Click an ID to load its data below.`
+          if (activityIdsScroll) {
+            activityIdsScroll.innerHTML = data
+              .map((a) => {
+                const noteStr = a.note != null ? String(a.note) : ''
+                const notePreview = noteStr.slice(0, 20)
+                const label = notePreview ? `${a.id} – ${escapeHtml(notePreview)}${noteStr.length > 20 ? '…' : ''}` : String(a.id)
+                return `<button type="button" class="activity-id-chip" data-activity-id="${a.id}">${label}</button>`
+              })
+              .join('')
+          }
+          if (activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = false
+        } else if (isBills) {
+          const api = (window as Window & { api?: { clio?: { fetchBillsByMatterDisplayNumber: (n: string) => Promise<{ data: Array<{ id: number; number?: string; type?: string }>; error?: string }> } } }).api
+          if (!api?.clio?.fetchBillsByMatterDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchBillsByMatterDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (!data || data.length === 0) {
+            messageEl.textContent = 'No bills found for this matter.'
+            return
+          }
+          messageEl.textContent = `${data.length} bill${data.length === 1 ? '' : 's'} (latest issued first).`
+          if (billsScroll) {
+            billsScroll.innerHTML = data
+              .map((b) => {
+                const invoiceNumber = b.number != null ? String(b.number) : '—'
+                const typeStr = b.type != null ? String(b.type) : ''
+                const label = `Invoice: ${escapeHtml(invoiceNumber)}${typeStr ? ` (${escapeHtml(typeStr)})` : ''}`
+                return `<button type="button" class="activity-id-chip" data-bill-id="${b.id}" title="ID: ${b.id}, Invoice: ${escapeAttr(invoiceNumber)}, Type: ${escapeAttr(typeStr)}">${label}</button>`
+              })
+              .join('')
+          }
+          if (billsWrap) (billsWrap as HTMLElement).hidden = false
+        } else {
+          const api = (window as Window & { api?: { clio?: { fetchMatterByDisplayNumber: (n: string) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+          if (!api?.clio?.fetchMatterByDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchMatterByDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (data && treeWrap) {
+            fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+            messageEl.textContent = ''
+          } else {
+            messageEl.textContent = 'No matter data returned.'
+          }
+        }
+      } finally {
+        ;(fetchBtn as HTMLButtonElement).disabled = false
+      }
+    })
+  }
+
+  if (isActivity && activityIdsScroll && treeWrap && messageEl) {
+    activityIdsScroll.addEventListener('click', async (e) => {
+      const chip = (e.target as HTMLElement).closest('.activity-id-chip')
+      if (!chip) return
+      const idStr = (chip as HTMLElement).dataset.activityId
+      if (!idStr) return
+      const id = Number(idStr)
+      if (Number.isNaN(id)) return
+      const api = (window as Window & { api?: { clio?: { fetchActivityById: (n: number) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+      if (!api?.clio?.fetchActivityById) {
+        messageEl.textContent = 'API not available.'
+        return
+      }
+      messageEl.textContent = 'Loading activity…'
+      try {
+        const { data, error } = await api.clio.fetchActivityById(id)
+        if (error) {
+          messageEl.textContent = error
+          return
+        }
+        if (data) {
+          fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+          messageEl.textContent = ''
+        } else {
+          messageEl.textContent = 'No activity data returned.'
+        }
+      } finally {
+        messageEl.textContent = messageEl.textContent || ''
+      }
+    })
+  }
+
+  if (isBills && billsScroll && treeWrap && messageEl) {
+    billsScroll.addEventListener('click', async (e) => {
+      const chip = (e.target as HTMLElement).closest('.activity-id-chip[data-bill-id]')
+      if (!chip) return
+      const idStr = (chip as HTMLElement).dataset.billId
+      if (!idStr) return
+      const id = Number(idStr)
+      if (Number.isNaN(id)) return
+      const api = (window as Window & { api?: { clio?: { fetchBillById: (n: number) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+      if (!api?.clio?.fetchBillById) {
+        messageEl.textContent = 'API not available.'
+        return
+      }
+      messageEl.textContent = 'Loading bill…'
+      try {
+        const { data, error } = await api.clio.fetchBillById(id)
+        if (error) {
+          messageEl.textContent = error
+          return
+        }
+        if (data) {
+          fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+          messageEl.textContent = ''
+        } else {
+          messageEl.textContent = 'No bill data returned.'
+        }
+      } finally {
+        messageEl.textContent = messageEl.textContent || ''
+      }
+    })
+  }
 }
 
 function openSchemaDialog(tileIndex: string, onBackToTiles: () => void): void {
@@ -153,6 +357,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
   const rows = fields
     .map((f) => {
       const name = String(f.name ?? '')
+      const fieldId = f.id != null ? String(f.id) : ''
       const isPicklist = f.field_type === 'picklist'
       const options = getPicklistOptions(f)
       const hasOptions = isPicklist && options.length > 0
@@ -167,6 +372,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
       <td>${f.displayed === true ? 'Yes' : 'No'}</td>
       <td>${f.deleted === true ? 'Yes' : 'No'}</td>
       <td>${f.required === true ? 'Yes' : 'No'}</td>
+      <td class="custom-field-fetched-value" data-custom-field-id="${escapeAttr(fieldId)}"></td>
     </tr>
   `
     })
@@ -180,6 +386,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
           <th>Displayed</th>
           <th>Deleted</th>
           <th>Required</th>
+          <th>Fetched Data</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -192,12 +399,20 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
   const content = document.getElementById('page-content')
   if (!content) return
 
+  const fetchLabel = parentType === 'Matter' ? 'Matter number' : 'Contact'
+  const fetchPlaceholder = parentType === 'Matter' ? 'e.g. 16420.001 or matter ID' : 'e.g. contact ID or name'
   content.innerHTML = `
     <div class="schema-detail-page custom-fields-detail">
       <div class="schema-detail-header">
         <button type="button" id="schema-detail-back" class="schema-back-btn" aria-label="Back">← Back</button>
         <h1 class="page-title schema-detail-title">Custom Fields — ${escapeHtml(parentType)}</h1>
         <p class="page-description">Loading custom fields from API…</p>
+      </div>
+      <div class="schema-fetch-bar custom-fields-fetch-bar">
+        <label for="custom-fields-entity-input" class="schema-fetch-label">${escapeHtml(fetchLabel)}</label>
+        <input type="text" id="custom-fields-entity-input" class="schema-matter-input" placeholder="${escapeAttr(fetchPlaceholder)}" />
+        <button type="button" id="custom-fields-fetch-btn" class="schema-fetch-btn">Fetch</button>
+        <span id="custom-fields-fetch-message" class="schema-fetch-message" aria-live="polite"></span>
       </div>
       <div id="custom-fields-content"></div>
     </div>
@@ -208,7 +423,7 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
   if (!container) return
 
   void (async () => {
-    const api = (window as Window & { api?: { clio?: { fetchCustomFields: (p: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }> } } }).api
+    const api = (window as Window & { api?: { clio?: { fetchCustomFields: (p: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>; fetchMatterByDisplayNumber: (n: string) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
     if (!api?.clio?.fetchCustomFields) {
       container.innerHTML = '<p class="text">API not available.</p>'
       const desc = content.querySelector('.schema-detail-header .page-description')
@@ -230,6 +445,65 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
     }
     container.innerHTML = getCustomFieldsTableHtml(data)
     attachPicklistTooltipListeners(container)
+
+    const fetchBtn = content.querySelector('#custom-fields-fetch-btn')
+    const entityInput = content.querySelector<HTMLInputElement>('#custom-fields-entity-input')
+    const messageEl = content.querySelector('#custom-fields-fetch-message')
+    const customFieldIds = data.map((f) => Number(f.id)).filter((n) => !Number.isNaN(n))
+    const fetchValues =
+      parentType === 'Matter'
+        ? api.clio.fetchMatterCustomFieldValues
+        : api.clio.fetchContactCustomFieldValues
+    if (fetchBtn && entityInput && messageEl && fetchValues) {
+      fetchBtn.addEventListener('click', async () => {
+        const identifier = entityInput.value.trim()
+        if (!identifier) {
+          messageEl.textContent = parentType === 'Matter' ? 'Enter a matter number or matter ID.' : 'Enter a contact ID or name.'
+          return
+        }
+        ;(fetchBtn as HTMLButtonElement).disabled = true
+        messageEl.textContent = 'Fetching…'
+        try {
+          const result = await fetchValues(identifier, customFieldIds)
+          if (result.error) {
+            messageEl.textContent = result.error
+            return
+          }
+          const values = result.data
+          const valueByFieldId: Record<string, string> = {}
+          for (const cv of values) {
+            const cf = cv.custom_field as { id?: number } | undefined
+            const cfId = cf?.id
+            if (cfId == null) continue
+            let displayValue: string = cv.value != null ? String(cv.value) : ''
+            const fieldDef = data.find((f) => Number(f.id) === cfId)
+            if (fieldDef?.field_type === 'picklist' && cv.value != null) {
+              const opts = fieldDef.picklist_options
+              if (Array.isArray(opts)) {
+                const selected = opts.find(
+                  (o: unknown) =>
+                    o != null &&
+                    typeof o === 'object' &&
+                    'id' in o &&
+                    (Number((o as { id: unknown }).id) === Number(cv.value) || (o as { id: unknown }).id === cv.value)
+                )
+                if (selected != null && typeof selected === 'object' && 'option' in selected) {
+                  displayValue = String((selected as { option: unknown }).option ?? '')
+                }
+              }
+            }
+            valueByFieldId[String(cfId)] = displayValue
+          }
+          container.querySelectorAll<HTMLElement>('.custom-field-fetched-value[data-custom-field-id]').forEach((cell) => {
+            const id = cell.getAttribute('data-custom-field-id')
+            cell.textContent = id ? (valueByFieldId[id] ?? '') : ''
+          })
+          messageEl.textContent = ''
+        } finally {
+          ;(fetchBtn as HTMLButtonElement).disabled = false
+        }
+      })
+    }
   })()
 }
 

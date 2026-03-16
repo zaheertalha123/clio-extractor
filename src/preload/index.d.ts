@@ -17,6 +17,13 @@ interface ClioAPI {
   fetchFirmRevenue: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchUnpaidBills: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchCustomFields: (parentType: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
+  fetchMatterByDisplayNumber: (displayNumber: string) => Promise<{ data: Record<string, unknown> | null; error?: string }>
+  fetchActivityIdsByMatterDisplayNumber: (displayNumber: string) => Promise<{ data: Array<{ id: number; note?: string }>; error?: string }>
+  fetchActivityById: (id: number) => Promise<{ data: Record<string, unknown> | null; error?: string }>
+  fetchBillsByMatterDisplayNumber: (displayNumber: string) => Promise<{ data: Array<{ id: number; number?: string; type?: string }>; error?: string }>
+  fetchBillById: (id: number) => Promise<{ data: Record<string, unknown> | null; error?: string }>
+  fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
+  fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
 }
 
 interface ResultsAPI {

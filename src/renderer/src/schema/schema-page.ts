@@ -61,18 +61,30 @@ function escapeAttr(s: string): string {
 function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): string {
   const treeHtml = buildSchemaTreeHtml(fields)
   const isActivity = entityName === 'Activity'
+  const isBills = entityName === 'Bills'
   const activityIdsBlock = isActivity
     ? `
       <div id="schema-activity-ids-wrap" class="activity-ids-wrap" hidden>
         <div class="activity-ids-scroll" id="schema-activity-ids-scroll"></div>
       </div>`
     : ''
+  const billsBlock = isBills
+    ? `
+      <div id="schema-bills-wrap" class="activity-ids-wrap" hidden>
+        <div class="activity-ids-scroll" id="schema-bills-scroll"></div>
+      </div>`
+    : ''
+  const descriptionSuffix = isActivity
+    ? ' Enter a matter number and click Fetch to load activity IDs (latest first).'
+    : isBills
+      ? ' Enter a matter number and click Fetch to load bills for that matter (latest issued first).'
+      : ''
   return `
     <div class="schema-detail-page">
       <div class="schema-detail-header">
         <button type="button" id="schema-detail-back" class="schema-back-btn" aria-label="Back to schema tiles">← Back</button>
         <h1 class="page-title schema-detail-title">${escapeHtml(entityName)}</h1>
-        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.${isActivity ? ' Enter a matter number and click Fetch to load activity IDs (latest first).' : ''}</p>
+        <p class="page-description">Field structure with nesting. Expand nodes to see nested fields.${descriptionSuffix}</p>
       </div>
       <div class="schema-fetch-bar">
         <label for="schema-matter-number" class="schema-fetch-label">Matter number</label>
@@ -81,6 +93,7 @@ function getSchemaDetailPageHtml(entityName: string, fields: SchemaField[]): str
         <span id="schema-fetch-message" class="schema-fetch-message" aria-live="polite"></span>
       </div>
       ${activityIdsBlock}
+      ${billsBlock}
       <div class="schema-tree-wrap">
         <div class="schema-tree-header">
           <span class="schema-tree-header-spacer"></span>
@@ -127,8 +140,11 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
   const matterInput = content.querySelector<HTMLInputElement>('#schema-matter-number')
   const messageEl = content.querySelector('#schema-fetch-message')
   const isActivity = entityName === 'Activity'
+  const isBills = entityName === 'Bills'
   const activityIdsWrap = content.querySelector('#schema-activity-ids-wrap')
   const activityIdsScroll = content.querySelector('#schema-activity-ids-scroll')
+  const billsWrap = content.querySelector('#schema-bills-wrap')
+  const billsScroll = content.querySelector('#schema-bills-scroll')
 
   if (fetchBtn && matterInput && messageEl) {
     fetchBtn.addEventListener('click', async () => {
@@ -136,11 +152,13 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
       if (!matterNumber) {
         messageEl.textContent = 'Enter a matter number.'
         if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+        if (isBills && billsWrap) (billsWrap as HTMLElement).hidden = true
         return
       }
       ;(fetchBtn as HTMLButtonElement).disabled = true
       messageEl.textContent = 'Fetching…'
       if (isActivity && activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = true
+      if (isBills && billsWrap) (billsWrap as HTMLElement).hidden = true
 
       try {
         if (isActivity) {
@@ -170,6 +188,33 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
               .join('')
           }
           if (activityIdsWrap) (activityIdsWrap as HTMLElement).hidden = false
+        } else if (isBills) {
+          const api = (window as Window & { api?: { clio?: { fetchBillsByMatterDisplayNumber: (n: string) => Promise<{ data: Array<{ id: number; number?: string; type?: string }>; error?: string }> } } }).api
+          if (!api?.clio?.fetchBillsByMatterDisplayNumber) {
+            messageEl.textContent = 'API not available.'
+            return
+          }
+          const { data, error } = await api.clio.fetchBillsByMatterDisplayNumber(matterNumber)
+          if (error) {
+            messageEl.textContent = error
+            return
+          }
+          if (!data || data.length === 0) {
+            messageEl.textContent = 'No bills found for this matter.'
+            return
+          }
+          messageEl.textContent = `${data.length} bill${data.length === 1 ? '' : 's'} (latest issued first).`
+          if (billsScroll) {
+            billsScroll.innerHTML = data
+              .map((b) => {
+                const invoiceNumber = b.number != null ? String(b.number) : '—'
+                const typeStr = b.type != null ? String(b.type) : ''
+                const label = `Invoice: ${escapeHtml(invoiceNumber)}${typeStr ? ` (${escapeHtml(typeStr)})` : ''}`
+                return `<button type="button" class="activity-id-chip" data-bill-id="${b.id}" title="ID: ${b.id}, Invoice: ${escapeAttr(invoiceNumber)}, Type: ${escapeAttr(typeStr)}">${label}</button>`
+              })
+              .join('')
+          }
+          if (billsWrap) (billsWrap as HTMLElement).hidden = false
         } else {
           const api = (window as Window & { api?: { clio?: { fetchMatterByDisplayNumber: (n: string) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
           if (!api?.clio?.fetchMatterByDisplayNumber) {
@@ -219,6 +264,38 @@ function showSchemaDetailView(entityName: string, tileName: string, onBack: () =
           messageEl.textContent = ''
         } else {
           messageEl.textContent = 'No activity data returned.'
+        }
+      } finally {
+        messageEl.textContent = messageEl.textContent || ''
+      }
+    })
+  }
+
+  if (isBills && billsScroll && treeWrap && messageEl) {
+    billsScroll.addEventListener('click', async (e) => {
+      const chip = (e.target as HTMLElement).closest('.activity-id-chip[data-bill-id]')
+      if (!chip) return
+      const idStr = (chip as HTMLElement).dataset.billId
+      if (!idStr) return
+      const id = Number(idStr)
+      if (Number.isNaN(id)) return
+      const api = (window as Window & { api?: { clio?: { fetchBillById: (n: number) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
+      if (!api?.clio?.fetchBillById) {
+        messageEl.textContent = 'API not available.'
+        return
+      }
+      messageEl.textContent = 'Loading bill…'
+      try {
+        const { data, error } = await api.clio.fetchBillById(id)
+        if (error) {
+          messageEl.textContent = error
+          return
+        }
+        if (data) {
+          fillSchemaFetchedValues(treeWrap as HTMLElement, data)
+          messageEl.textContent = ''
+        } else {
+          messageEl.textContent = 'No bill data returned.'
         }
       } finally {
         messageEl.textContent = messageEl.textContent || ''

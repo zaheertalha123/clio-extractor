@@ -18,6 +18,8 @@ const api = {
     fetchMatterByDisplayNumber: (displayNumber: string) => ipcRenderer.invoke('clio:fetch-matter-by-display-number', displayNumber),
     fetchActivityIdsByMatterDisplayNumber: (displayNumber: string) => ipcRenderer.invoke('clio:fetch-activity-ids-by-matter-display-number', displayNumber),
     fetchActivityById: (id: number) => ipcRenderer.invoke('clio:fetch-activity-by-id', id),
+    fetchBillsByMatterDisplayNumber: (displayNumber: string) => ipcRenderer.invoke('clio:fetch-bills-by-matter-display-number', displayNumber),
+    fetchBillById: (id: number) => ipcRenderer.invoke('clio:fetch-bill-by-id', id),
     fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) =>
       ipcRenderer.invoke('clio:fetch-matter-custom-field-values', matterIdentifier, customFieldIds),
     fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) =>

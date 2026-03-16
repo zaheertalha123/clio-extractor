@@ -235,6 +235,16 @@ app.whenReady().then(() => {
     return await apiClient.getActivityById(id)
   })
 
+  ipcMain.handle('clio:fetch-bills-by-matter-display-number', async (_event, displayNumber: string) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getBillsByMatterDisplayNumber(displayNumber)
+  })
+
+  ipcMain.handle('clio:fetch-bill-by-id', async (_event, id: number) => {
+    if (!apiClient) return { data: null, error: 'API not initialized' }
+    return await apiClient.getBillById(id)
+  })
+
   ipcMain.handle('clio:fetch-matter-custom-field-values', async (_event, matterIdentifier: string, customFieldIds: number[]) => {
     if (!apiClient) return { data: [], error: 'API not initialized' }
     return await apiClient.getMatterCustomFieldValues(matterIdentifier, customFieldIds)

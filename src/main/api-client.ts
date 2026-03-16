@@ -289,21 +289,103 @@ class ClioAPIClient {
     return { data: matter }
   }
 
+  /** Bill order options per Clio API (e.g. id(asc), issued_at(desc)). */
   async getBills(params?: {
+    matter_id?: number
+    order?: string
     fields?: string
     limit?: number
     offset?: number
+    page_token?: string
   }): Promise<{ data: unknown; error?: string }> {
     const queryParams = new URLSearchParams()
 
+    if (params?.matter_id != null) queryParams.append('matter_id', String(params.matter_id))
+    if (params?.order) queryParams.append('order', params.order)
     if (params?.fields) queryParams.append('fields', params.fields)
-    if (params?.limit) queryParams.append('limit', params.limit.toString())
-    if (params?.offset) queryParams.append('offset', params.offset.toString())
+    if (params?.limit != null) queryParams.append('limit', String(params.limit))
+    if (params?.offset != null) queryParams.append('offset', String(params.offset))
+    if (params?.page_token) queryParams.append('page_token', params.page_token)
 
     const query = queryParams.toString()
-    const endpoint = query ? `/bills?${query}` : '/bills'
+    const endpoint = query ? `/bills.json?${query}` : '/bills.json'
 
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Resolve matter display_number to matter id, then fetch bills for that matter (latest issued first).
+   * Returns id, number, and type for each bill.
+   */
+  async getBillsByMatterDisplayNumber(displayNumber: string): Promise<{
+    data: Array<{ id: number; number?: string; type?: string }>
+    error?: string
+  }> {
+    const matterRes = await this.getMatterByDisplayNumber(displayNumber)
+    if (matterRes.error) return { data: [], error: matterRes.error }
+    const matter = matterRes.data
+    if (!matter || matter.id == null) return { data: [], error: 'Matter not found' }
+    const matterId = matter.id as number
+    const results: Array<{ id: number; number?: string; type?: string }> = []
+    let pageToken: string | null = null
+    const limit = 200
+    do {
+      const res = await this.getBills({
+        matter_id: matterId,
+        order: 'issued_at(desc)',
+        limit,
+        fields: 'id,number,type',
+        page_token: pageToken ?? undefined
+      })
+      if (res.error) return { data: results.length ? results : [], error: res.error }
+      const body = res.data as { data?: Array<{ id: number; number?: string; type?: string }>; meta?: { paging?: { next_page_token?: string } } }
+      const page = body?.data ?? []
+      for (const b of page) {
+        if (b?.id != null) results.push({ id: b.id, number: b.number, type: b.type })
+      }
+      const next = body?.meta?.paging?.next_page_token ?? (body?.meta as { next_page_token?: string })?.next_page_token ?? null
+      pageToken = next && page.length === limit ? next : null
+    } while (pageToken)
+    return { data: results }
+  }
+
+  /** Bill fields for getBillById – all fields up to first level of nesting. */
+  private static readonly BILL_DETAIL_FIELDS = [
+    'id', 'etag', 'number', 'issued_at', 'created_at', 'due_at', 'tax_rate', 'secondary_tax_rate',
+    'updated_at', 'subject', 'purchase_order', 'type', 'memo', 'start_at', 'end_at', 'balance', 'state',
+    'kind', 'total', 'paid', 'paid_at', 'pending', 'due', 'discount_services_only', 'can_update',
+    'credits_issued', 'shared', 'last_sent_at', 'services_secondary_tax', 'services_sub_total',
+    'services_tax', 'services_taxable_sub_total', 'services_secondary_taxable_sub_total',
+    'taxable_sub_total', 'secondary_taxable_sub_total', 'sub_total', 'tax_sum', 'secondary_tax_sum',
+    'total_tax', 'available_state_transitions',
+    'user{account_owner,clio_connect,court_rules_default_attendee,created_at,default_calendar_id,email,enabled,etag,first_name,id,initials,last_name,name,phone_number,rate,roles,subscription_type,time_zone,updated_at}',
+    'client{id,etag,name,first_name,middle_name,last_name,date_of_birth,type,created_at,updated_at,prefix,title,initials,clio_connect_email,locked_clio_connect_email,client_connect_user_id,primary_email_address,secondary_email_address,primary_phone_number,secondary_phone_number,ledes_client_id,has_clio_for_clients_permission,is_client,is_clio_for_client_user,is_co_counsel,is_bill_recipient,sales_tax_number,currency}',
+    'discount{rate,type,note,early_payment_rate,early_payment_period}',
+    'interest{balance,period,rate,total,type}',
+    'matters{id,etag,number,display_number,custom_number,currency,description,status,location,client_reference,client_id,billable,maildrop_address,billing_method,open_date,close_date,pending_date,created_at,updated_at,shared,has_tasks,last_activity_date,matter_stage_updated_at}',
+    'group{client_connect_user,etag,id,name,type,updated_at}',
+    'bill_theme{id,etag,created_at,updated_at,account_id,default,name,config}',
+    'original_bill{id,etag,number,issued_at,created_at,due_at,tax_rate,secondary_tax_rate,updated_at,subject,purchase_order,type,memo,start_at,end_at,balance,state,kind,total,paid,paid_at,pending,due,discount_services_only,can_update,credits_issued,shared,last_sent_at,services_secondary_tax,services_sub_total,services_tax,services_taxable_sub_total,services_secondary_taxable_sub_total,taxable_sub_total,secondary_taxable_sub_total,sub_total,tax_sum,secondary_tax_sum,total_tax,available_state_transitions}',
+    'destination_account{account_number,balance,bank_transactions_count,clio_payment_page_link,clio_payment_page_qr_code,clio_payments_enabled,controlled_account,created_at,currency,currency_symbol,currency_id,default_account,domicile_branch,etag,general_ledger_number,holder,id,institution,name,swift,transit_number,type,updated_at}',
+    'balances{id,amount,type,interest_amount,due}',
+    'matter_totals{id,amount}',
+    'currency{id,etag,code,sign,created_at,updated_at}',
+    'billing_setting{id,etag,rounded_duration,rounding,use_decimal_rounding,currency,currency_sign,tax_rate,tax_name,apply_tax_by_default,apply_secondary_tax_by_default,time_on_flat_rate_contingency_matters_is_non_billable,use_secondary_tax,secondary_tax_rate,secondary_tax_rule,secondary_tax_name,notify_after_bill_created,use_utbms_codes,created_at,updated_at,multi_currency_billing}',
+    'client_addresses{id,etag,street,city,province,postal_code,country,name,created_at,updated_at,primary}',
+    'legal_aid_uk_bill{additional_travel_payment,adjourned_hearing_fee,advocacy_costs,advice_time,bill_type,case_concluded,case_stage_level,cla_exemption_code,cla_reference,cmrh_oral,cmrh_telephone,cost_of_counsel,costs_are_those_of,court_location,date_of_claim,designated_accredited_representative,detention_travel_and_waiting_costs,disbursements_vat,exceptional_case_funding_reference,exemption_criteria_satisfied,fee_code,follow_on_work,ho_interview,ho_ucn,id,independent_medical_reports_claimed,jr_form_filling,maat_id,meetings_attended,mht_ref_no,net_disbursements,net_profit_costs,niat_disbursement_prior_authority_number,number_of_attendances,outcome_for_the_client,profit_costs_ex_vat,prior_authority_reference,representation_order_date,stage_reached,substantive_hearing,travel_and_waiting_costs,travel_time,value_of_costs,waiting_time}',
+    'split_invoice{id,bill_id,linked_invoices_display_numbers,linked_invoices_ids,split_connection_id,split_portion,etag,created_at,updated_at}'
+  ].join(',')
+
+  /**
+   * GET /bills/{id}.json – fetch a single bill by id with full fields.
+   */
+  async getBillById(id: number): Promise<{ data: Record<string, unknown> | null; error?: string }> {
+    const res = await this.makeRequest(
+      `/bills/${id}.json?fields=${encodeURIComponent(ClioAPIClient.BILL_DETAIL_FIELDS)}`
+    )
+    if (res.error) return { data: null, error: res.error }
+    const body = res.data as { data?: Record<string, unknown> }
+    return { data: body?.data ?? null }
   }
 
   /** Custom field record from Clio API */

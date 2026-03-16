@@ -280,6 +280,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
   const rows = fields
     .map((f) => {
       const name = String(f.name ?? '')
+      const fieldId = f.id != null ? String(f.id) : ''
       const isPicklist = f.field_type === 'picklist'
       const options = getPicklistOptions(f)
       const hasOptions = isPicklist && options.length > 0
@@ -294,6 +295,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
       <td>${f.displayed === true ? 'Yes' : 'No'}</td>
       <td>${f.deleted === true ? 'Yes' : 'No'}</td>
       <td>${f.required === true ? 'Yes' : 'No'}</td>
+      <td class="custom-field-fetched-value" data-custom-field-id="${escapeAttr(fieldId)}"></td>
     </tr>
   `
     })
@@ -307,6 +309,7 @@ function getCustomFieldsTableHtml(fields: Array<Record<string, unknown>>): strin
           <th>Displayed</th>
           <th>Deleted</th>
           <th>Required</th>
+          <th>Fetched Data</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -319,12 +322,20 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
   const content = document.getElementById('page-content')
   if (!content) return
 
+  const fetchLabel = parentType === 'Matter' ? 'Matter number' : 'Contact'
+  const fetchPlaceholder = parentType === 'Matter' ? 'e.g. 16420.001 or matter ID' : 'e.g. contact ID or name'
   content.innerHTML = `
     <div class="schema-detail-page custom-fields-detail">
       <div class="schema-detail-header">
         <button type="button" id="schema-detail-back" class="schema-back-btn" aria-label="Back">← Back</button>
         <h1 class="page-title schema-detail-title">Custom Fields — ${escapeHtml(parentType)}</h1>
         <p class="page-description">Loading custom fields from API…</p>
+      </div>
+      <div class="schema-fetch-bar custom-fields-fetch-bar">
+        <label for="custom-fields-entity-input" class="schema-fetch-label">${escapeHtml(fetchLabel)}</label>
+        <input type="text" id="custom-fields-entity-input" class="schema-matter-input" placeholder="${escapeAttr(fetchPlaceholder)}" />
+        <button type="button" id="custom-fields-fetch-btn" class="schema-fetch-btn">Fetch</button>
+        <span id="custom-fields-fetch-message" class="schema-fetch-message" aria-live="polite"></span>
       </div>
       <div id="custom-fields-content"></div>
     </div>
@@ -335,7 +346,7 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
   if (!container) return
 
   void (async () => {
-    const api = (window as Window & { api?: { clio?: { fetchCustomFields: (p: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }> } } }).api
+    const api = (window as Window & { api?: { clio?: { fetchCustomFields: (p: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>; fetchMatterByDisplayNumber: (n: string) => Promise<{ data: Record<string, unknown> | null; error?: string }> } } }).api
     if (!api?.clio?.fetchCustomFields) {
       container.innerHTML = '<p class="text">API not available.</p>'
       const desc = content.querySelector('.schema-detail-header .page-description')
@@ -357,6 +368,65 @@ function showCustomFieldsView(parentType: 'Contact' | 'Matter', onBack: () => vo
     }
     container.innerHTML = getCustomFieldsTableHtml(data)
     attachPicklistTooltipListeners(container)
+
+    const fetchBtn = content.querySelector('#custom-fields-fetch-btn')
+    const entityInput = content.querySelector<HTMLInputElement>('#custom-fields-entity-input')
+    const messageEl = content.querySelector('#custom-fields-fetch-message')
+    const customFieldIds = data.map((f) => Number(f.id)).filter((n) => !Number.isNaN(n))
+    const fetchValues =
+      parentType === 'Matter'
+        ? api.clio.fetchMatterCustomFieldValues
+        : api.clio.fetchContactCustomFieldValues
+    if (fetchBtn && entityInput && messageEl && fetchValues) {
+      fetchBtn.addEventListener('click', async () => {
+        const identifier = entityInput.value.trim()
+        if (!identifier) {
+          messageEl.textContent = parentType === 'Matter' ? 'Enter a matter number or matter ID.' : 'Enter a contact ID or name.'
+          return
+        }
+        ;(fetchBtn as HTMLButtonElement).disabled = true
+        messageEl.textContent = 'Fetching…'
+        try {
+          const result = await fetchValues(identifier, customFieldIds)
+          if (result.error) {
+            messageEl.textContent = result.error
+            return
+          }
+          const values = result.data
+          const valueByFieldId: Record<string, string> = {}
+          for (const cv of values) {
+            const cf = cv.custom_field as { id?: number } | undefined
+            const cfId = cf?.id
+            if (cfId == null) continue
+            let displayValue: string = cv.value != null ? String(cv.value) : ''
+            const fieldDef = data.find((f) => Number(f.id) === cfId)
+            if (fieldDef?.field_type === 'picklist' && cv.value != null) {
+              const opts = fieldDef.picklist_options
+              if (Array.isArray(opts)) {
+                const selected = opts.find(
+                  (o: unknown) =>
+                    o != null &&
+                    typeof o === 'object' &&
+                    'id' in o &&
+                    (Number((o as { id: unknown }).id) === Number(cv.value) || (o as { id: unknown }).id === cv.value)
+                )
+                if (selected != null && typeof selected === 'object' && 'option' in selected) {
+                  displayValue = String((selected as { option: unknown }).option ?? '')
+                }
+              }
+            }
+            valueByFieldId[String(cfId)] = displayValue
+          }
+          container.querySelectorAll<HTMLElement>('.custom-field-fetched-value[data-custom-field-id]').forEach((cell) => {
+            const id = cell.getAttribute('data-custom-field-id')
+            cell.textContent = id ? (valueByFieldId[id] ?? '') : ''
+          })
+          messageEl.textContent = ''
+        } finally {
+          ;(fetchBtn as HTMLButtonElement).disabled = false
+        }
+      })
+    }
   })()
 }
 

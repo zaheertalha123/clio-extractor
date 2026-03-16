@@ -71,12 +71,14 @@ class ClioAPIClient {
     fields?: string
     limit?: number
     offset?: number
+    query?: string
   }): Promise<{ data: unknown; error?: string }> {
     const queryParams = new URLSearchParams()
 
     if (params?.fields) queryParams.append('fields', params.fields)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
     if (params?.offset) queryParams.append('offset', params.offset.toString())
+    if (params?.query != null) queryParams.append('query', params.query)
 
     const query = queryParams.toString()
     const endpoint = query ? `/contacts?${query}` : '/contacts'
@@ -138,6 +140,11 @@ class ClioAPIClient {
     'kyc_field_values{id,etag,field_name,field_label,created_at,updated_at,field_type,field_value,field_possible_values,group}',
     'split_invoice_payers{id,contact_id,matter_id,send_to_bill_recipients,split_portion,etag,created_at,updated_at}'
   ].join(',')
+  /** Contact fields for getContactCustomFieldValues (include custom_field_values). */
+  private static readonly CONTACT_DETAIL_FIELDS = [
+    'id', 'etag', 'name', 'first_name', 'middle_name', 'last_name', 'created_at', 'updated_at',
+    'custom_field_values{id,etag,field_name,created_at,updated_at,field_type,field_required,field_displayed,field_display_order,value,soft_deleted,custom_field,picklist_option,matter,contact}'
+  ].join(',')
 
   /**
    * Activity Rates are custom rates per contact (single-level nesting only).
@@ -155,6 +162,74 @@ class ClioAPIClient {
     const qs = queryParams.toString()
     const endpoint = qs ? `/activity_rates?${qs}` : '/activity_rates'
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Fetch only custom_field_values for a matter. Resolves matter ID the same way as matters part:
+   * getMatters by query, match by display_number, then GET /matters/{id} with custom_field_ids[].
+   */
+  async getMatterCustomFieldValues(
+    matterIdentifier: string,
+    customFieldIds: number[]
+  ): Promise<{ data: Array<Record<string, unknown>>; error?: string }> {
+    const listRes = await this.getMatters({
+      query: matterIdentifier.trim(),
+      limit: 50,
+      fields: 'id,display_number'
+    })
+    if (listRes.error) return { data: [], error: listRes.error }
+    const listBody = listRes.data as { data?: Array<{ id: number; display_number?: string }> }
+    const items = listBody?.data ?? []
+    const match = items.find((m) => String(m.display_number) === String(matterIdentifier.trim()))
+    if (!match) {
+      return { data: [], error: `No matter found with display_number: ${matterIdentifier}` }
+    }
+    const matterId = match.id
+    const params = new URLSearchParams()
+    params.set('fields', ClioAPIClient.MATTER_DETAIL_FIELDS)
+    customFieldIds.forEach((id) => params.append('custom_field_ids[]', String(id)))
+    const res = await this.makeRequest(`/matters/${matterId}.json?${params.toString()}`)
+    if (res.error) return { data: [], error: res.error }
+    const body = res.data as { data?: { custom_field_values?: Array<Record<string, unknown>> } }
+    const values = body?.data?.custom_field_values ?? []
+    return { data: values }
+  }
+
+  /**
+   * Fetch only custom_field_values for a contact. Resolves contact ID via getContacts (query or numeric id), then GET /contacts/{id} with custom_field_ids[].
+   */
+  async getContactCustomFieldValues(
+    contactIdentifier: string,
+    customFieldIds: number[]
+  ): Promise<{ data: Array<Record<string, unknown>>; error?: string }> {
+    const trimmed = contactIdentifier.trim()
+    let contactId: number
+    const numericId = Number(trimmed)
+    if (!Number.isNaN(numericId) && String(numericId) === trimmed) {
+      contactId = numericId
+    } else {
+      const listRes = await this.getContacts({
+        query: trimmed,
+        limit: 50,
+        fields: 'id,name'
+      })
+      if (listRes.error) return { data: [], error: listRes.error }
+      const listBody = listRes.data as { data?: Array<{ id: number; name?: string }> }
+      const items = listBody?.data ?? []
+      const match = items.find((m) => String(m.name ?? '').toLowerCase().includes(trimmed.toLowerCase())) ?? items[0]
+      if (!match) {
+        return { data: [], error: `No contact found for: ${contactIdentifier}` }
+      }
+      contactId = match.id
+    }
+    const params = new URLSearchParams()
+    params.set('fields', ClioAPIClient.CONTACT_DETAIL_FIELDS)
+    customFieldIds.forEach((id) => params.append('custom_field_ids[]', String(id)))
+    const res = await this.makeRequest(`/contacts/${contactId}.json?${params.toString()}`)
+    if (res.error) return { data: [], error: res.error }
+    const body = res.data as { data?: { custom_field_values?: Array<Record<string, unknown>> } }
+    const values = body?.data?.custom_field_values ?? []
+    return { data: values }
   }
 
   /** Fetch a single matter by display_number (list by query, then get by id). Returns matter object or error. */

@@ -235,6 +235,16 @@ app.whenReady().then(() => {
     return await apiClient.getActivityById(id)
   })
 
+  ipcMain.handle('clio:fetch-matter-custom-field-values', async (_event, matterIdentifier: string, customFieldIds: number[]) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getMatterCustomFieldValues(matterIdentifier, customFieldIds)
+  })
+
+  ipcMain.handle('clio:fetch-contact-custom-field-values', async (_event, contactIdentifier: string, customFieldIds: number[]) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getContactCustomFieldValues(contactIdentifier, customFieldIds)
+  })
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({

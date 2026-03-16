@@ -17,7 +17,11 @@ const api = {
     fetchCustomFields: (parentType: 'Contact' | 'Matter') => ipcRenderer.invoke('clio:fetch-custom-fields', parentType),
     fetchMatterByDisplayNumber: (displayNumber: string) => ipcRenderer.invoke('clio:fetch-matter-by-display-number', displayNumber),
     fetchActivityIdsByMatterDisplayNumber: (displayNumber: string) => ipcRenderer.invoke('clio:fetch-activity-ids-by-matter-display-number', displayNumber),
-    fetchActivityById: (id: number) => ipcRenderer.invoke('clio:fetch-activity-by-id', id)
+    fetchActivityById: (id: number) => ipcRenderer.invoke('clio:fetch-activity-by-id', id),
+    fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) =>
+      ipcRenderer.invoke('clio:fetch-matter-custom-field-values', matterIdentifier, customFieldIds),
+    fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) =>
+      ipcRenderer.invoke('clio:fetch-contact-custom-field-values', contactIdentifier, customFieldIds)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {

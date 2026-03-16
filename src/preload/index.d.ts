@@ -20,6 +20,8 @@ interface ClioAPI {
   fetchMatterByDisplayNumber: (displayNumber: string) => Promise<{ data: Record<string, unknown> | null; error?: string }>
   fetchActivityIdsByMatterDisplayNumber: (displayNumber: string) => Promise<{ data: Array<{ id: number; note?: string }>; error?: string }>
   fetchActivityById: (id: number) => Promise<{ data: Record<string, unknown> | null; error?: string }>
+  fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
+  fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
 }
 
 interface ResultsAPI {

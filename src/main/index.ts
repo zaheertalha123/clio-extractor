@@ -212,6 +212,11 @@ app.whenReady().then(() => {
     return await apiClient.getUnpaidBillsData(filters)
   })
 
+  ipcMain.handle('clio:get-matters-by-display-id', async (_event, query: string) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getMattersByDisplayId(typeof query === 'string' ? query : '')
+  })
+
   ipcMain.handle('clio:fetch-custom-fields', async (_event, parentType: string) => {
     if (!apiClient) return { data: [], error: 'API not initialized' }
     if (parentType !== 'Contact' && parentType !== 'Matter') {

@@ -1,0 +1,189 @@
+/* Revenue Report — chips above a single matter ID input */
+.rr-field-wrap {
+  position: relative;
+}
+
+.revenue-report-form {
+  margin-top: 24px;
+  max-width: 640px;
+}
+
+.revenue-report-form .rr-compile-actions {
+  padding-top: 16px;
+  justify-content: flex-start;
+}
+
+.rr-matter-block {
+  margin-bottom: 0;
+}
+
+.rr-matter-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clio-text);
+  margin-bottom: 8px;
+}
+
+/* Selected matters sit above the input */
+.rr-chips-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  min-height: 0;
+}
+
+.rr-chips-stack:empty {
+  display: none;
+}
+
+.rr-input-row {
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: var(--clio-white);
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.rr-input-row:focus-within {
+  border-color: var(--clio-blue);
+  box-shadow: 0 0 0 2px rgba(0, 62, 126, 0.15);
+}
+
+.rr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  background: rgba(0, 62, 126, 0.08);
+  border: 1px solid rgba(0, 62, 126, 0.2);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--clio-text);
+  max-width: 100%;
+}
+
+.rr-chip-id {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rr-chip-name {
+  font-size: 12px;
+  color: var(--clio-text-muted, #5c6570);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.rr-chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--clio-text);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.rr-chip-remove:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.rr-combo-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  color: var(--clio-text);
+  padding: 10px 0;
+}
+
+.rr-combo-input::placeholder {
+  color: #9aa3ad;
+}
+
+.rr-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--clio-white);
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.rr-suggestions[hidden] {
+  display: none !important;
+}
+
+.rr-suggestion {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  background: var(--clio-white);
+  color: var(--clio-text);
+}
+
+.rr-suggestion:hover,
+.rr-suggestion.rr-suggestion--active {
+  background: rgba(0, 62, 126, 0.08);
+}
+
+.rr-suggestion-id {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rr-suggestion-name {
+  font-size: 12px;
+  color: var(--clio-text-muted, #5c6570);
+}
+
+.rr-hint {
+  font-size: 12px;
+  color: var(--clio-text-muted, #5c6570);
+  margin-top: 6px;
+}
+
+.rr-status {
+  font-size: 13px;
+  margin-top: 6px;
+  min-height: 18px;
+}
+
+.rr-status--error {
+  color: #b00020;
+}
+
+.rr-status--loading {
+  color: var(--clio-text-muted, #5c6570);
+}

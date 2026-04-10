@@ -1,4 +1,6 @@
 import ClioAuthManager from './auth'
+import { getMattersByDisplayId as fetchMattersByDisplayId } from './api/matters/get-matter-by-display-id'
+import type { MatterByDisplayIdRow } from './api/matters/get-matter-by-display-id'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -103,6 +105,13 @@ class ClioAPIClient {
     const endpoint = qs ? `/matters?${qs}` : '/matters'
 
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * List matters matching a display-ID search query. Delegates to api/matters/get-matter-by-display-id.
+   */
+  async getMattersByDisplayId(query: string): Promise<{ data: MatterByDisplayIdRow[]; error?: string }> {
+    return fetchMattersByDisplayId((endpoint, options) => this.makeRequest(endpoint, options), query)
   }
 
   /**

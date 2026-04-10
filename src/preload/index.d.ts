@@ -14,6 +14,10 @@ interface ClioAPI {
   getUsers: () => Promise<{ data: unknown; error?: string }>
   getPracticeAreas: () => Promise<{ data: unknown; error?: string }>
   getBillableClients: () => Promise<{ data: unknown; error?: string }>
+  getMattersByDisplayId: (query: string) => Promise<{
+    data: Array<{ id: number; display_number: string; description: string | null }>
+    error?: string
+  }>
   fetchFirmRevenue: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchUnpaidBills: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchCustomFields: (parentType: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>

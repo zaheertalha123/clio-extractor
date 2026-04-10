@@ -12,6 +12,7 @@ const api = {
     getUsers: () => ipcRenderer.invoke('clio:get-users'),
     getPracticeAreas: () => ipcRenderer.invoke('clio:get-practice-areas'),
     getBillableClients: () => ipcRenderer.invoke('clio:get-billable-clients'),
+    getMattersByDisplayId: (query: string) => ipcRenderer.invoke('clio:get-matters-by-display-id', query),
     fetchFirmRevenue: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-firm-revenue', filters),
     fetchUnpaidBills: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-unpaid-bills', filters),
     fetchCustomFields: (parentType: 'Contact' | 'Matter') => ipcRenderer.invoke('clio:fetch-custom-fields', parentType),

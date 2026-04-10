@@ -11,9 +11,10 @@ import {
   setUnpaidBillsStatus
 } from './unpaid-bills'
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
+import { getRevenueReportPageHtml, setupRevenueReportPage } from './revenue-report'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills'
+type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills' | 'revenue-report'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -22,6 +23,9 @@ interface CachedOptions {
 }
 
 let cachedOptions: CachedOptions | null = null
+
+/** Avoid re-injecting page HTML and re-running setup when the user clicks the current nav tab again. */
+let activePageId: PageId | null = null
 
 const PAGES: Record<PageId, { title: string; description: string }> = {
   home: {
@@ -39,6 +43,10 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   'unpaid-bills': {
     title: 'Unpaid Bills',
     description: 'Extract unpaid bills (draft, awaiting approval, awaiting payment) from Clio.'
+  },
+  'revenue-report': {
+    title: 'Revenue Report',
+    description: 'Revenue reporting (coming soon).'
   }
 }
 
@@ -47,7 +55,7 @@ function getHomePageHtml(): string {
     <div class="home-page">
       <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
-      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Firm Revenue or Unpaid Bills.</p>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Revenue Report, Firm Revenue, or Unpaid Bills.</p>
     </div>
   `
 }
@@ -57,6 +65,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'schema') return getSchemaPageHtml()
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
+  if (pageId === 'revenue-report') return getRevenueReportPageHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
 }
 
@@ -176,6 +185,7 @@ async function checkAuthStatus(): Promise<void> {
       await loadAppVersion()
       await loadPage('home')
     } else {
+      activePageId = null
       if (loginView) loginView.style.display = 'flex'
       if (appView) appView.style.display = 'none'
       if (loginContainer) loginContainer.style.display = 'block'
@@ -220,8 +230,12 @@ async function loadCurrentUser(): Promise<void> {
 }
 
 async function loadPage(pageId: PageId): Promise<void> {
+  if (activePageId === pageId) return
+
   const contentArea = document.getElementById('page-content')
   if (!contentArea) return
+
+  activePageId = pageId
 
   contentArea.innerHTML = renderPageContent(pageId)
 
@@ -246,6 +260,9 @@ async function loadPage(pageId: PageId): Promise<void> {
   if (pageId === 'unpaid-bills') {
     await loadUnpaidBillsOptions()
     setupUnpaidBillsListeners()
+  }
+  if (pageId === 'revenue-report') {
+    setupRevenueReportPage()
   }
 }
 

@@ -1,6 +1,11 @@
 import ClioAuthManager from './auth'
 import { getMattersByDisplayId as fetchMattersByDisplayId } from './api/matters/get-matter-by-display-id'
 import type { MatterByDisplayIdRow } from './api/matters/get-matter-by-display-id'
+import {
+  fetchRevenueReportCustomFieldData,
+  type RevenueReportCustomFieldDataResult,
+  type RevenueReportCustomFieldsFetchInput
+} from './api/custom-fields/revenue-report-fetch'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -105,6 +110,18 @@ class ClioAPIClient {
     const endpoint = qs ? `/matters?${qs}` : '/matters'
 
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Revenue Report: fetch matters with selected custom_field_values via GET /matters (paginated or per display_number).
+   */
+  async fetchRevenueReportCustomFieldData(
+    params: RevenueReportCustomFieldsFetchInput
+  ): Promise<RevenueReportCustomFieldDataResult> {
+    return fetchRevenueReportCustomFieldData(
+      (endpoint, options) => this.makeRequest(endpoint, options),
+      params
+    )
   }
 
   /**

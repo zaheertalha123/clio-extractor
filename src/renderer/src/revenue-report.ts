@@ -298,6 +298,7 @@ export function getRevenueReportPageHtml(): string {
 
       <div class="form-actions rr-compile-actions">
         <button type="button" id="rr-compile-report-btn" class="button">Compile Report</button>
+        <span class="rr-compile-fetch-status" id="rr-compile-fetch-status" aria-live="polite"></span>
       </div>
     </div>
   `
@@ -548,13 +549,80 @@ export function setupRevenueReportPage(): void {
 
   setupCustomFieldsSection()
 
-  document.getElementById('rr-compile-report-btn')?.addEventListener('click', () => {
-    console.log('Compile Report', {
-      matterStatus: matterStatusEl.value || null,
-      matters: state.selected,
-      allMatters: allMattersEl.checked,
-      customFields: getCustomFieldsSelection()
-    })
+  const compileBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null
+  const compileFetchStatusEl = document.getElementById('rr-compile-fetch-status')
+
+  compileBtn?.addEventListener('click', () => {
+    void (async () => {
+      const cfSel = getCustomFieldsSelection()
+      const customFieldIds = resolveCustomFieldClioIdsForRequest(cfSel)
+      const allMatters = allMattersEl.checked
+      const matterDisplayNumbers = state.selected.map((m) => m.display_number)
+
+      console.log('Compile Report', {
+        matterStatus: matterStatusEl.value || null,
+        matters: state.selected,
+        allMatters,
+        customFields: cfSel,
+        customFieldIds
+      })
+
+      if (compileFetchStatusEl) {
+        compileFetchStatusEl.textContent = ''
+        compileFetchStatusEl.classList.remove('rr-compile-fetch-status--error')
+      }
+
+      if (customFieldIds.length === 0) {
+        if (compileFetchStatusEl) {
+          compileFetchStatusEl.textContent = 'Select at least one custom field with a Clio id.'
+          compileFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+        return
+      }
+
+      if (!allMatters && matterDisplayNumbers.length === 0) {
+        if (compileFetchStatusEl) {
+          compileFetchStatusEl.textContent = 'Add at least one matter or choose All Matters.'
+          compileFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+        return
+      }
+
+      const matterStatusRaw = matterStatusEl.value?.trim()
+      const matterStatus = matterStatusRaw !== '' ? matterStatusRaw : undefined
+
+      compileBtn!.disabled = true
+      if (compileFetchStatusEl) {
+        compileFetchStatusEl.textContent = 'Fetching…'
+      }
+
+      try {
+        const result = await window.api.clio.fetchRevenueReportCustomFields({
+          allMatters,
+          matterDisplayNumbers,
+          customFieldIds,
+          matterStatus
+        })
+        if (result.error) {
+          if (compileFetchStatusEl) {
+            compileFetchStatusEl.textContent = result.error
+            compileFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+          }
+          return
+        }
+        if (compileFetchStatusEl) {
+          compileFetchStatusEl.textContent = `No. of records fetched: ${result.recordCount}`
+          compileFetchStatusEl.classList.remove('rr-compile-fetch-status--error')
+        }
+      } catch (e) {
+        if (compileFetchStatusEl) {
+          compileFetchStatusEl.textContent = e instanceof Error ? e.message : 'Request failed'
+          compileFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+      } finally {
+        compileBtn!.disabled = false
+      }
+    })()
   })
 }
 
@@ -667,4 +735,15 @@ function getCustomFieldsSelection(): RevenueReportCustomFieldsSelection {
     .map((c) => c.clioFieldId)
     .filter((id): id is number => id != null)
   return { mode: 'specific', fieldIds, checkedFields }
+}
+
+/** Resolves which Clio custom_field ids to request (all mapped ids vs checked subset). */
+function resolveCustomFieldClioIdsForRequest(sel: RevenueReportCustomFieldsSelection): number[] {
+  if (sel.mode === 'all') {
+    const ids = Object.values(MATTER_CUSTOM_FIELD_CLIO_IDS).filter(
+      (id): id is number => typeof id === 'number' && Number.isFinite(id)
+    )
+    return [...new Set(ids)]
+  }
+  return [...new Set(sel.fieldIds)]
 }

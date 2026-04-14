@@ -163,7 +163,20 @@
 .revenue-report-form .rr-compile-actions {
   padding-top: 0;
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
   justify-content: flex-start;
+}
+
+.rr-compile-fetch-status {
+  font-size: 14px;
+  color: var(--clio-text-muted, #5c6570);
+}
+
+.rr-compile-fetch-status--error {
+  color: #b00020;
 }
 
 .rr-matter-block {

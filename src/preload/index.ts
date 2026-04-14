@@ -24,7 +24,13 @@ const api = {
     fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) =>
       ipcRenderer.invoke('clio:fetch-matter-custom-field-values', matterIdentifier, customFieldIds),
     fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) =>
-      ipcRenderer.invoke('clio:fetch-contact-custom-field-values', contactIdentifier, customFieldIds)
+      ipcRenderer.invoke('clio:fetch-contact-custom-field-values', contactIdentifier, customFieldIds),
+    fetchRevenueReportCustomFields: (payload: {
+      allMatters: boolean
+      matterDisplayNumbers: string[]
+      customFieldIds: number[]
+      matterStatus?: string
+    }) => ipcRenderer.invoke('clio:fetch-revenue-report-custom-fields', payload)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {

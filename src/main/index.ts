@@ -260,6 +260,31 @@ app.whenReady().then(() => {
     return await apiClient.getContactCustomFieldValues(contactIdentifier, customFieldIds)
   })
 
+  ipcMain.handle(
+    'clio:fetch-revenue-report-custom-fields',
+    async (
+      _event,
+      payload: {
+        allMatters: boolean
+        matterDisplayNumbers: string[]
+        customFieldIds: number[]
+        matterStatus?: string
+      }
+    ) => {
+      if (!apiClient) {
+        return { data: [], recordCount: 0, error: 'API not initialized' }
+      }
+      return await apiClient.fetchRevenueReportCustomFieldData({
+        allMatters: Boolean(payload?.allMatters),
+        matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
+        customFieldIds: Array.isArray(payload?.customFieldIds) ? payload.customFieldIds : [],
+        matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
+          ? payload.matterStatus.trim()
+          : undefined
+      })
+    }
+  )
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({

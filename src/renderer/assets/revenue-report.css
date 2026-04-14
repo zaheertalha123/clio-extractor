@@ -31,6 +31,112 @@
 .revenue-report-form {
   margin-top: 24px;
   max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rr-section {
+  margin: 0;
+  padding: 20px 20px 22px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 8px;
+  background: var(--clio-white);
+}
+
+.rr-section-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--clio-text);
+  letter-spacing: 0.01em;
+}
+
+.rr-section--matter .rr-matter-block {
+  margin: 0;
+}
+
+.rr-section--custom-fields .rr-cf-scope-wrap {
+  margin-bottom: 0;
+}
+
+.rr-custom-fields-scope {
+  min-height: 42px;
+}
+
+.rr-custom-fields-panel {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.rr-cf-group-divider {
+  height: 0;
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--clio-gray);
+}
+
+.rr-cf-select-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--clio-text);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--clio-gray);
+}
+
+.rr-cf-select-all input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.rr-custom-fields-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(320px, 55vh);
+  overflow-y: auto;
+}
+
+.rr-cf-field-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--clio-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rr-cf-field-row input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.rr-cf-field-name {
+  line-height: 1.35;
+}
+
+.rr-cf-field-row:has(.rr-cf-field-cb:disabled) {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.rr-cf-all-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--clio-text-muted, #5c6570);
 }
 
 .rr-matter-columns {
@@ -55,7 +161,8 @@
 }
 
 .revenue-report-form .rr-compile-actions {
-  padding-top: 16px;
+  padding-top: 0;
+  margin: 0;
   justify-content: flex-start;
 }
 

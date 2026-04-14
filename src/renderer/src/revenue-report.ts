@@ -22,6 +22,122 @@ interface UiState {
 
 const DEBOUNCE_MS = 300
 
+/**
+ * Full set of matter custom field display names (Clio). Checkbox ids 1001+ are UI placeholders until
+ * `getCustomFields('Matter')` is wired; then replace with API `id` values.
+ */
+const MATTER_CUSTOM_FIELD_NAMES = [
+  'MUID',
+  'Managing',
+  'MatterType',
+  'MatterID',
+  'AR_Notes',
+  'Bill Cycle',
+  'Billing Notes',
+  'Billing_Frequency',
+  'BIll Theme',
+  'Conflict Check Performed',
+  'Originator 1 %',
+  'Originating Attorney 2',
+  'Originator 2 %',
+  'Responsible 1 %',
+  'Responsible Attorney 2',
+  'Responsible 2 %',
+  'Payment Plan',
+  '366',
+  '60+ Day Past Due Exempt',
+  'Client First and Last Name',
+  'Case Number',
+  'Opposing Party Contact',
+  'Orig Atty 1',
+  'Orig Atty 2',
+  'Resp Atty 1',
+  'Resp Atty 2',
+  'End Date 1',
+  'Orig.Atty 1',
+  'Orig.Atty 2',
+  'Resp.Atty 1',
+  'Resp.Atty 2',
+  'End Date 2',
+  'Orig.Atty. 1',
+  'Orig.Atty. 2',
+  'Resp.Atty. 1',
+  'Resp.Atty. 2',
+  'End Date 3',
+  'Office Location',
+  'Referrer',
+  'Referral Percentage',
+  '366 Start Date',
+  'Payment Plan Start Date'
+] as const
+
+/** Top block: selected by default in Specific mode */
+const CUSTOM_FIELDS_BLOCK1_ORDER = [
+  'Bill Cycle',
+  'Orig Atty 1',
+  'Orig.Atty 1',
+  'Orig.Atty. 1',
+  'Originator 1 %',
+  'Orig Atty 2',
+  'Orig.Atty 2',
+  'Orig.Atty. 2',
+  'Originator 2 %',
+  'Resp Atty 1',
+  'Resp.Atty 1',
+  'Resp.Atty. 1',
+  'Responsible 1 %',
+  'Resp Atty 2',
+  'Resp.Atty 2',
+  'Resp.Atty. 2',
+  'Responsible 2 %'
+] as const
+
+/** Second block: order only, unchecked by default */
+const CUSTOM_FIELDS_BLOCK2_ORDER = [
+  'Referrer',
+  'Referral Percentage',
+  'End Date 1',
+  'End Date 2',
+  'End Date 3',
+  'Payment Plan',
+  '366',
+  '60+ Day Past Due Exempt',
+  '366 Start Date',
+  'Payment Plan Start Date'
+] as const
+
+type RevenueCfFieldRow = {
+  id: number
+  name: string
+  defaultChecked: boolean
+  group: 1 | 2 | 3
+}
+
+function buildRevenueReportCustomFieldsOrdered(): RevenueCfFieldRow[] {
+  const placed = new Set<string>([...CUSTOM_FIELDS_BLOCK1_ORDER, ...CUSTOM_FIELDS_BLOCK2_ORDER])
+  const block3 = MATTER_CUSTOM_FIELD_NAMES.filter((n) => !placed.has(n))
+  const merged: Omit<RevenueCfFieldRow, 'id'>[] = [
+    ...CUSTOM_FIELDS_BLOCK1_ORDER.map((name) => ({
+      name,
+      defaultChecked: true,
+      group: 1 as const
+    })),
+    ...CUSTOM_FIELDS_BLOCK2_ORDER.map((name) => ({
+      name,
+      defaultChecked: false,
+      group: 2 as const
+    })),
+    ...block3.map((name) => ({
+      name,
+      defaultChecked: false,
+      group: 3 as const
+    }))
+  ]
+  return merged.map((row, i) => ({ ...row, id: 1001 + i }))
+}
+
+const PLACEHOLDER_MATTER_CUSTOM_FIELDS: ReadonlyArray<RevenueCfFieldRow> = buildRevenueReportCustomFieldsOrdered()
+
 /** Same options as Firm Revenue → Matter Status */
 const MATTER_STATUS_OPTIONS_HTML = [
   '<option value="">All statuses</option>',
@@ -45,46 +161,77 @@ export function getRevenueReportPageHtml(): string {
       <p class="page-description">Add one or more matters by display ID.</p>
     </div>
     <div class="revenue-report-form">
-      <div class="rr-matter-block" data-rr-matter-field>
-        <div class="rr-selected-matters">
-          <div class="rr-chips-stack" id="rr-matter-chips" aria-live="polite" aria-label="Selected matters"></div>
-        </div>
-        <div class="rr-matter-columns">
-          <div class="filter-group rr-matter-status-wrap">
-            <label for="rr-matter-status">Matter Status</label>
-            <select id="rr-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
+      <section class="rr-section rr-section--matter" aria-labelledby="rr-section-matter-title">
+        <h2 class="rr-section-title" id="rr-section-matter-title">Matter</h2>
+        <div class="rr-matter-block" data-rr-matter-field>
+          <div class="rr-selected-matters">
+            <div class="rr-chips-stack" id="rr-matter-chips" aria-live="polite" aria-label="Selected matters"></div>
           </div>
-          <div class="rr-matter-id-wrap">
-            <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
-            <div class="rr-field-wrap">
-              <div class="rr-input-row">
-                <input
-                  type="text"
-                  class="rr-combo-input"
-                  id="rr-matter-input"
-                  placeholder="Type at least 4 characters to search…"
-                  autocomplete="off"
-                  spellcheck="false"
-                  aria-autocomplete="list"
-                  aria-controls="rr-matter-suggestions"
-                  aria-expanded="false"
-                />
+          <div class="rr-matter-columns">
+            <div class="filter-group rr-matter-status-wrap">
+              <label for="rr-matter-status">Matter Status</label>
+              <select id="rr-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
+            </div>
+            <div class="rr-matter-id-wrap">
+              <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
+              <div class="rr-field-wrap">
+                <div class="rr-input-row">
+                  <input
+                    type="text"
+                    class="rr-combo-input"
+                    id="rr-matter-input"
+                    placeholder="Type at least 4 characters to search…"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-autocomplete="list"
+                    aria-controls="rr-matter-suggestions"
+                    aria-expanded="false"
+                  />
+                </div>
+                <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
               </div>
-              <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
             </div>
           </div>
+          <div class="rr-all-matters-row">
+            <label class="rr-all-matters-label" for="rr-all-matters">
+              <input type="checkbox" id="rr-all-matters" />
+              <span>All Matters</span>
+            </label>
+          </div>
+          <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
+          <div class="rr-status" id="rr-matter-input-status" aria-live="polite"></div>
         </div>
-        <div class="rr-all-matters-row">
-          <label class="rr-all-matters-label" for="rr-all-matters">
-            <input type="checkbox" id="rr-all-matters" />
-            <span>All Matters</span>
+      </section>
+
+      <section class="rr-section rr-section--custom-fields" aria-labelledby="rr-section-cf-title">
+        <h2 class="rr-section-title" id="rr-section-cf-title">Custom Fields</h2>
+        <div class="filter-group rr-cf-scope-wrap">
+          <label for="rr-custom-fields-scope">Include</label>
+          <select id="rr-custom-fields-scope" class="rr-custom-fields-scope">
+            <option value="all">All</option>
+            <option value="specific" selected>Specific fields…</option>
+          </select>
+        </div>
+        <div id="rr-custom-fields-panel" class="rr-custom-fields-panel">
+          <label class="rr-cf-select-all">
+            <input type="checkbox" id="rr-cf-select-all" />
+            <span>Select all</span>
           </label>
+          <div
+            id="rr-custom-fields-checkboxes"
+            class="rr-custom-fields-checkboxes"
+            role="group"
+            aria-label="Matter custom fields"
+          ></div>
         </div>
-        <div class="form-actions rr-compile-actions">
-          <button type="button" id="rr-compile-report-btn" class="button">Compile Report</button>
-        </div>
-        <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
-        <div class="rr-status" id="rr-matter-input-status" aria-live="polite"></div>
+        <p class="rr-cf-all-hint" id="rr-cf-all-hint">
+          Specific fields… is the default: the first group is preselected. All: include every field. Switching back from
+          All restores the default selection.
+        </p>
+      </section>
+
+      <div class="form-actions rr-compile-actions">
+        <button type="button" id="rr-compile-report-btn" class="button">Compile Report</button>
       </div>
     </div>
   `
@@ -333,11 +480,111 @@ export function setupRevenueReportPage(): void {
     applyAllMattersMode(allMattersEl.checked)
   })
 
+  setupCustomFieldsSection()
+
   document.getElementById('rr-compile-report-btn')?.addEventListener('click', () => {
     console.log('Compile Report', {
       matterStatus: matterStatusEl.value || null,
       matters: state.selected,
-      allMatters: allMattersEl.checked
+      allMatters: allMattersEl.checked,
+      customFields: getCustomFieldsSelection()
     })
   })
+}
+
+function setupCustomFieldsSection(): void {
+  const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
+  const containerEl = document.getElementById('rr-custom-fields-checkboxes')
+  const selectAllEl = document.getElementById('rr-cf-select-all') as HTMLInputElement | null
+  if (!scopeEl || !containerEl || !selectAllEl) return
+
+  const fields = [...PLACEHOLDER_MATTER_CUSTOM_FIELDS]
+  let prevGroup: 0 | 1 | 2 | 3 = 0
+  for (const f of fields) {
+    if (prevGroup !== 0 && f.group !== prevGroup) {
+      const divider = document.createElement('div')
+      divider.className = 'rr-cf-group-divider'
+      divider.setAttribute('role', 'presentation')
+      containerEl.appendChild(divider)
+    }
+    prevGroup = f.group
+
+    const row = document.createElement('label')
+    row.className = 'rr-cf-field-row'
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'
+    cb.className = 'rr-cf-field-cb'
+    cb.dataset.fieldId = String(f.id)
+    cb.dataset.defaultChecked = f.defaultChecked ? '1' : '0'
+    cb.checked = f.defaultChecked
+    const span = document.createElement('span')
+    span.className = 'rr-cf-field-name'
+    span.textContent = f.name
+    row.appendChild(cb)
+    row.appendChild(span)
+    containerEl.appendChild(row)
+  }
+
+  const getFieldCheckboxes = (): HTMLInputElement[] =>
+    Array.from(containerEl.querySelectorAll<HTMLInputElement>('.rr-cf-field-cb'))
+
+  const syncSelectAll = (): void => {
+    const boxes = getFieldCheckboxes()
+    const n = boxes.length
+    const checked = boxes.filter((b) => b.checked).length
+    selectAllEl.checked = n > 0 && checked === n
+    selectAllEl.indeterminate = checked > 0 && checked < n
+  }
+
+  const applySpecificDefaults = (): void => {
+    for (const cb of getFieldCheckboxes()) {
+      cb.checked = cb.dataset.defaultChecked === '1'
+    }
+    syncSelectAll()
+  }
+
+  const applyScope = (): void => {
+    const all = scopeEl.value === 'all'
+    for (const cb of getFieldCheckboxes()) {
+      cb.disabled = all
+      if (all) cb.checked = true
+    }
+    selectAllEl.disabled = all
+    if (all) {
+      selectAllEl.checked = true
+      selectAllEl.indeterminate = false
+    } else {
+      applySpecificDefaults()
+    }
+  }
+
+  scopeEl.addEventListener('change', applyScope)
+
+  selectAllEl.addEventListener('change', () => {
+    if (selectAllEl.disabled) return
+    const on = selectAllEl.checked
+    for (const cb of getFieldCheckboxes()) cb.checked = on
+    selectAllEl.indeterminate = false
+  })
+
+  containerEl.addEventListener('change', (e) => {
+    const t = e.target as HTMLElement
+    if (t instanceof HTMLInputElement && t.classList.contains('rr-cf-field-cb') && !t.disabled)
+      syncSelectAll()
+  })
+
+  applyScope()
+}
+
+function getCustomFieldsSelection(): { mode: 'all' } | { mode: 'specific'; fieldIds: number[] } {
+  const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
+  const containerEl = document.getElementById('rr-custom-fields-checkboxes')
+  if (!scopeEl || !containerEl) return { mode: 'specific', fieldIds: [] }
+  if (scopeEl.value === 'all') return { mode: 'all' }
+  const fieldIds: number[] = []
+  for (const cb of containerEl.querySelectorAll<HTMLInputElement>('.rr-cf-field-cb:checked')) {
+    const id = Number(cb.dataset.fieldId)
+    if (!Number.isNaN(id)) fieldIds.push(id)
+  }
+  return { mode: 'specific', fieldIds }
 }

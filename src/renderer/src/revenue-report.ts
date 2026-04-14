@@ -22,6 +22,14 @@ interface UiState {
 
 const DEBOUNCE_MS = 300
 
+/** Same options as Firm Revenue → Matter Status */
+const MATTER_STATUS_OPTIONS_HTML = [
+  '<option value="">All statuses</option>',
+  '<option value="Open">Open</option>',
+  '<option value="Pending">Pending</option>',
+  '<option value="Closed">Closed</option>'
+].join('')
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -38,29 +46,45 @@ export function getRevenueReportPageHtml(): string {
     </div>
     <div class="revenue-report-form">
       <div class="rr-matter-block" data-rr-matter-field>
-        <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
-        <div class="rr-chips-stack" id="rr-matter-chips" aria-live="polite"></div>
-        <div class="rr-field-wrap">
-          <div class="rr-input-row">
-            <input
-              type="text"
-              class="rr-combo-input"
-              id="rr-matter-input"
-              placeholder="Type at least 4 characters to search…"
-              autocomplete="off"
-              spellcheck="false"
-              aria-autocomplete="list"
-              aria-controls="rr-matter-suggestions"
-              aria-expanded="false"
-            />
+        <div class="rr-selected-matters">
+          <div class="rr-chips-stack" id="rr-matter-chips" aria-live="polite" aria-label="Selected matters"></div>
+        </div>
+        <div class="rr-matter-columns">
+          <div class="filter-group rr-matter-status-wrap">
+            <label for="rr-matter-status">Matter Status</label>
+            <select id="rr-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
           </div>
-          <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
+          <div class="rr-matter-id-wrap">
+            <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
+            <div class="rr-field-wrap">
+              <div class="rr-input-row">
+                <input
+                  type="text"
+                  class="rr-combo-input"
+                  id="rr-matter-input"
+                  placeholder="Type at least 4 characters to search…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-autocomplete="list"
+                  aria-controls="rr-matter-suggestions"
+                  aria-expanded="false"
+                />
+              </div>
+              <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
+            </div>
+          </div>
+        </div>
+        <div class="rr-all-matters-row">
+          <label class="rr-all-matters-label" for="rr-all-matters">
+            <input type="checkbox" id="rr-all-matters" />
+            <span>All Matters</span>
+          </label>
         </div>
         <div class="form-actions rr-compile-actions">
           <button type="button" id="rr-compile-report-btn" class="button">Compile Report</button>
         </div>
         <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
-        <div class="rr-status" id="rr-matter-status" aria-live="polite"></div>
+        <div class="rr-status" id="rr-matter-input-status" aria-live="polite"></div>
       </div>
     </div>
   `
@@ -70,7 +94,7 @@ function getElements(): Elements | null {
   const input = document.getElementById('rr-matter-input') as HTMLInputElement | null
   const suggestions = document.getElementById('rr-matter-suggestions') as HTMLUListElement | null
   const chips = document.getElementById('rr-matter-chips') as HTMLDivElement | null
-  const status = document.getElementById('rr-matter-status')
+  const status = document.getElementById('rr-matter-input-status')
   const block = document.querySelector('[data-rr-matter-field]') as HTMLElement | null
   if (!input || !suggestions || !chips || !status || !block) return null
   return { input, suggestions, chips, status, block }
@@ -173,6 +197,10 @@ function renderChipRow(els: Elements, state: UiState): void {
 export function setupRevenueReportPage(): void {
   const els = getElements()
   if (!els) return
+
+  const allMattersEl = document.getElementById('rr-all-matters') as HTMLInputElement | null
+  const matterStatusEl = document.getElementById('rr-matter-status') as HTMLSelectElement | null
+  if (!allMattersEl || !matterStatusEl) return
 
   const state: UiState = {
     suggestions: [],
@@ -286,7 +314,30 @@ export function setupRevenueReportPage(): void {
     }, 150)
   })
 
+  const applyAllMattersMode = (allMatters: boolean): void => {
+    els.input.disabled = allMatters
+    if (allMatters) {
+      if (state.debounce) {
+        clearTimeout(state.debounce)
+        state.debounce = null
+      }
+      els.input.value = ''
+      hideSuggestions(els, state)
+      setStatus(els.status, '', 'idle')
+      state.selected = []
+      renderChipRow(els, state)
+    }
+  }
+
+  allMattersEl.addEventListener('change', () => {
+    applyAllMattersMode(allMattersEl.checked)
+  })
+
   document.getElementById('rr-compile-report-btn')?.addEventListener('click', () => {
-    console.log('Compile Report', { matters: state.selected })
+    console.log('Compile Report', {
+      matterStatus: matterStatusEl.value || null,
+      matters: state.selected,
+      allMatters: allMattersEl.checked
+    })
   })
 }

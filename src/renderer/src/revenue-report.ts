@@ -4,6 +4,16 @@ export type MatterPickerRow = {
   description: string | null
 }
 
+export type RevenueReportCustomFieldsSelection =
+  | { mode: 'all' }
+  | {
+      mode: 'specific'
+      /** Clio `custom_fields` ids for checked rows that have a mapped id */
+      fieldIds: number[]
+      /** Checked rows with optional Clio id (not rendered; for IPC / logging) */
+      checkedFields: Array<{ name: string; clioFieldId: number | null }>
+    }
+
 interface Elements {
   input: HTMLInputElement
   suggestions: HTMLUListElement
@@ -23,8 +33,60 @@ interface UiState {
 const DEBOUNCE_MS = 300
 
 /**
- * Full set of matter custom field display names (Clio). Checkbox ids 1001+ are UI placeholders until
- * `getCustomFields('Matter')` is wired; then replace with API `id` values.
+ * Clio API `custom_fields` id by field `name` (Matter). Not shown in the UI; used for IPC / reporting.
+ * Synced with firm Matter custom fields (display_order 0–41). Only `AR_Notes` has no id in the API export yet.
+ */
+const MATTER_CUSTOM_FIELD_CLIO_IDS: Partial<Record<string, number>> = {
+  MUID: 14739007,
+  Managing: 14739022,
+  MatterType: 14739037,
+  MatterID: 14739052,
+  'Bill Cycle': 14760022,
+  'Billing Notes': 14935537,
+  Billing_Frequency: 14935582,
+  'BIll Theme': 15012907,
+  'Conflict Check Performed': 15122212,
+  'Originator 1 %': 15306307,
+  'Originating Attorney 2': 15306352,
+  'Originator 2 %': 15306367,
+  'Responsible 1 %': 15306382,
+  'Responsible Attorney 2': 15306667,
+  'Responsible 2 %': 15306682,
+  'Payment Plan': 15328957,
+  '366': 15328972,
+  '60+ Day Past Due Exempt': 15328987,
+  'Client First and Last Name': 15917498,
+  'Case Number': 15918383,
+  'Opposing Party Contact': 15918413,
+  'Orig Atty 1': 16190498,
+  'Orig Atty 2': 16190513,
+  'Resp Atty 1': 16190528,
+  'Resp Atty 2': 16190543,
+  'End Date 1': 16190558,
+  'Orig.Atty 1': 16190588,
+  'Orig.Atty 2': 16190618,
+  'Resp.Atty 1': 16190633,
+  'Resp.Atty 2': 16190648,
+  'End Date 2': 16190663,
+  'Orig.Atty. 1': 16190708,
+  'Orig.Atty. 2': 16190723,
+  'Resp.Atty. 1': 16190738,
+  'Resp.Atty. 2': 16190753,
+  'End Date 3': 16190768,
+  'Office Location': 16729658,
+  Referrer: 17148323,
+  'Referral Percentage': 17148338,
+  '366 Start Date': 17430983,
+  'Payment Plan Start Date': 17430998
+}
+
+function clioCustomFieldIdForName(name: string): number | null {
+  const id = MATTER_CUSTOM_FIELD_CLIO_IDS[name]
+  return id !== undefined ? id : null
+}
+
+/**
+ * Full set of matter custom field display names (Clio). Order matches the firm’s field list.
  */
 const MATTER_CUSTOM_FIELD_NAMES = [
   'MUID',
@@ -107,33 +169,37 @@ const CUSTOM_FIELDS_BLOCK2_ORDER = [
 ] as const
 
 type RevenueCfFieldRow = {
-  id: number
   name: string
   defaultChecked: boolean
   group: 1 | 2 | 3
+  /** Clio custom_field id; null if not in MATTER_CUSTOM_FIELD_CLIO_IDS yet */
+  clioFieldId: number | null
 }
 
 function buildRevenueReportCustomFieldsOrdered(): RevenueCfFieldRow[] {
   const placed = new Set<string>([...CUSTOM_FIELDS_BLOCK1_ORDER, ...CUSTOM_FIELDS_BLOCK2_ORDER])
   const block3 = MATTER_CUSTOM_FIELD_NAMES.filter((n) => !placed.has(n))
-  const merged: Omit<RevenueCfFieldRow, 'id'>[] = [
+  const merged: RevenueCfFieldRow[] = [
     ...CUSTOM_FIELDS_BLOCK1_ORDER.map((name) => ({
       name,
       defaultChecked: true,
-      group: 1 as const
+      group: 1 as const,
+      clioFieldId: clioCustomFieldIdForName(name)
     })),
     ...CUSTOM_FIELDS_BLOCK2_ORDER.map((name) => ({
       name,
       defaultChecked: false,
-      group: 2 as const
+      group: 2 as const,
+      clioFieldId: clioCustomFieldIdForName(name)
     })),
     ...block3.map((name) => ({
       name,
       defaultChecked: false,
-      group: 3 as const
+      group: 3 as const,
+      clioFieldId: clioCustomFieldIdForName(name)
     }))
   ]
-  return merged.map((row, i) => ({ ...row, id: 1001 + i }))
+  return merged
 }
 
 const PLACEHOLDER_MATTER_CUSTOM_FIELDS: ReadonlyArray<RevenueCfFieldRow> = buildRevenueReportCustomFieldsOrdered()
@@ -514,7 +580,10 @@ function setupCustomFieldsSection(): void {
     const cb = document.createElement('input')
     cb.type = 'checkbox'
     cb.className = 'rr-cf-field-cb'
-    cb.dataset.fieldId = String(f.id)
+    cb.dataset.cfName = f.name
+    if (f.clioFieldId != null) {
+      cb.dataset.clioFieldId = String(f.clioFieldId)
+    }
     cb.dataset.defaultChecked = f.defaultChecked ? '1' : '0'
     cb.checked = f.defaultChecked
     const span = document.createElement('span')
@@ -576,15 +645,26 @@ function setupCustomFieldsSection(): void {
   applyScope()
 }
 
-function getCustomFieldsSelection(): { mode: 'all' } | { mode: 'specific'; fieldIds: number[] } {
+function getCustomFieldsSelection(): RevenueReportCustomFieldsSelection {
   const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
   const containerEl = document.getElementById('rr-custom-fields-checkboxes')
-  if (!scopeEl || !containerEl) return { mode: 'specific', fieldIds: [] }
-  if (scopeEl.value === 'all') return { mode: 'all' }
-  const fieldIds: number[] = []
-  for (const cb of containerEl.querySelectorAll<HTMLInputElement>('.rr-cf-field-cb:checked')) {
-    const id = Number(cb.dataset.fieldId)
-    if (!Number.isNaN(id)) fieldIds.push(id)
+  if (!scopeEl || !containerEl) {
+    return { mode: 'specific', fieldIds: [], checkedFields: [] }
   }
-  return { mode: 'specific', fieldIds }
+  if (scopeEl.value === 'all') return { mode: 'all' }
+  const checkedFields: Array<{ name: string; clioFieldId: number | null }> = []
+  for (const cb of containerEl.querySelectorAll<HTMLInputElement>('.rr-cf-field-cb:checked')) {
+    const name = cb.dataset.cfName ?? ''
+    const raw = cb.dataset.clioFieldId
+    let clioFieldId: number | null = null
+    if (raw != null && raw !== '') {
+      const n = Number(raw)
+      clioFieldId = Number.isNaN(n) ? null : n
+    }
+    checkedFields.push({ name, clioFieldId })
+  }
+  const fieldIds = checkedFields
+    .map((c) => c.clioFieldId)
+    .filter((id): id is number => id != null)
+  return { mode: 'specific', fieldIds, checkedFields }
 }

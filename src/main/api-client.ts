@@ -61,11 +61,16 @@ class ClioAPIClient {
 
       const data = await response.json()
       return { data }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('API request error:', error)
+      let message = error instanceof Error ? error.message : 'Unknown error'
+      const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined
+      if (cause instanceof Error) {
+        message = `${message}: ${cause.message}`
+      }
       return {
         data: null,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: message
       }
     }
   }

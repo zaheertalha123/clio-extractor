@@ -181,7 +181,10 @@ async function checkAuthStatus(): Promise<void> {
     if (isAuthenticated) {
       if (loginView) loginView.style.display = 'none'
       if (appView) appView.style.display = 'flex'
-      await loadCurrentUser()
+      const userFlow = await loadCurrentUser()
+      if (userFlow === 'signed-out') {
+        return
+      }
       await loadAppVersion()
       await loadPage('home')
     } else {
@@ -209,23 +212,70 @@ async function loadAppVersion(): Promise<void> {
   }
 }
 
-async function loadCurrentUser(): Promise<void> {
+function isLikelyClioConnectionFailure(message: string): boolean {
+  const m = message.toLowerCase()
+  return (
+    m.includes('fetch failed') ||
+    m.includes('enotfound') ||
+    m.includes('econnrefused') ||
+    m.includes('etimedout') ||
+    m.includes('enetunreach') ||
+    m.includes('getaddrinfo') ||
+    m.includes('eai_again') ||
+    m.includes('cert_authority_invalid') ||
+    m.includes('unable to verify the first certificate')
+  )
+}
+
+/** Loads the signed-in user from Clio; on network failure offers Try again / Sign out. */
+async function loadCurrentUser(): Promise<'signed-out' | undefined> {
   const userNameEl = document.getElementById('user-name')
-  if (!userNameEl) return
+  if (!userNameEl) {
+    return undefined
+  }
 
-  try {
-    const { data, error } = await window.api.clio.getCurrentUser()
+  while (true) {
+    try {
+      const { data, error } = await window.api.clio.getCurrentUser()
 
-    if (error || !data) {
+      if (!error && data) {
+        const apiResponse = data as { data?: { name?: string; id?: number } }
+        const user = apiResponse?.data
+        userNameEl.textContent = user?.name ?? 'User'
+        return undefined
+      }
+
+      const errMsg = error ?? 'Unknown error'
+      if (isLikelyClioConnectionFailure(errMsg) && window.api.showClioConnectionDialog) {
+        const choice = await window.api.showClioConnectionDialog()
+        if (choice === 'signout') {
+          await window.api.clio.logout()
+          activePageId = null
+          cachedOptions = null
+          await checkAuthStatus()
+          return 'signed-out'
+        }
+        continue
+      }
+
       userNameEl.textContent = 'User'
-      return
+      return undefined
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (isLikelyClioConnectionFailure(msg) && window.api.showClioConnectionDialog) {
+        const choice = await window.api.showClioConnectionDialog()
+        if (choice === 'signout') {
+          await window.api.clio.logout()
+          activePageId = null
+          cachedOptions = null
+          await checkAuthStatus()
+          return 'signed-out'
+        }
+        continue
+      }
+      userNameEl.textContent = 'User'
+      return undefined
     }
-
-    const apiResponse = data as { data?: { name?: string; id?: number } }
-    const user = apiResponse?.data
-    userNameEl.textContent = user?.name ?? 'User'
-  } catch {
-    userNameEl.textContent = 'User'
   }
 }
 

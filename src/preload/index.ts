@@ -51,6 +51,8 @@ const api = {
   openResultsWindow: (data: unknown[]) => ipcRenderer.invoke('window:open-results', data),
   openUnpaidBillsResults: (data: unknown[]) => ipcRenderer.invoke('window:open-unpaid-bills-results', data),
   openTableResults: (payload: TableResultsPayload) => ipcRenderer.invoke('window:open-table-results', payload),
+  showClioConnectionDialog: () =>
+    ipcRenderer.invoke('dialog:clio-connection-failed') as Promise<'retry' | 'signout'>,
   updater: {
     onUpdateChecking: (callback: () => void) => {
       ipcRenderer.on('updater:checking', () => callback())

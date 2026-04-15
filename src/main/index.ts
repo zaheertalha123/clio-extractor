@@ -377,6 +377,25 @@ app.whenReady().then(() => {
     }
   )
 
+  ipcMain.handle('dialog:clio-connection-failed', async (event): Promise<'retry' | 'signout'> => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
+    if (!win || win.isDestroyed()) {
+      return 'signout'
+    }
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Cannot reach Clio',
+      message: 'Failed to connect to Clio.',
+      detail:
+        'Check your internet connection and try again. If the problem continues, sign out and sign in when you are online.',
+      buttons: ['Try again', 'Sign out'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    })
+    return response === 0 ? 'retry' : 'signout'
+  })
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({

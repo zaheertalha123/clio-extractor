@@ -78,7 +78,57 @@ export type TableResultsPayload = {
   csvBaseName?: string
 }
 
-function openTableResultsWindow(payload: TableResultsPayload): void {
+/** Single results-table window: focus if same data; replace content if data changed. */
+let tableResultsWindow: BrowserWindow | null = null
+let tableResultsPayloadFingerprint: string | null = null
+
+function fingerprintTableResultsPayload(payload: TableResultsPayload): string {
+  try {
+    return JSON.stringify({
+      title: payload.title ?? '',
+      csvBaseName: payload.csvBaseName ?? '',
+      columns: payload.columns,
+      records: payload.records
+    })
+  } catch {
+    return `err-${Date.now()}`
+  }
+}
+
+function focusTableResultsWindow(win: BrowserWindow): void {
+  if (win.isMinimized()) {
+    win.restore()
+  }
+  win.show()
+  win.focus()
+}
+
+function sendTableResultsPayload(win: BrowserWindow, payload: TableResultsPayload, delayMs: number): void {
+  const send = (): void => {
+    win.webContents.send('table-results-data', payload)
+  }
+  if (delayMs > 0) {
+    setTimeout(send, delayMs)
+  } else {
+    send()
+  }
+}
+
+function openOrUpdateTableResultsWindow(payload: TableResultsPayload): void {
+  const fp = fingerprintTableResultsPayload(payload)
+
+  if (tableResultsWindow && !tableResultsWindow.isDestroyed()) {
+    if (fp === tableResultsPayloadFingerprint) {
+      focusTableResultsWindow(tableResultsWindow)
+      return
+    }
+    tableResultsPayloadFingerprint = fp
+    tableResultsWindow.setTitle(payload.title || 'Report')
+    sendTableResultsPayload(tableResultsWindow, payload, 0)
+    focusTableResultsWindow(tableResultsWindow)
+    return
+  }
+
   const resultsWindow = new BrowserWindow({
     width: 1400,
     height: 800,
@@ -90,6 +140,16 @@ function openTableResultsWindow(payload: TableResultsPayload): void {
     }
   })
 
+  tableResultsWindow = resultsWindow
+  tableResultsPayloadFingerprint = fp
+
+  resultsWindow.on('closed', () => {
+    if (tableResultsWindow === resultsWindow) {
+      tableResultsWindow = null
+      tableResultsPayloadFingerprint = null
+    }
+  })
+
   const tblRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
   if (is.dev && tblRendererUrl) {
     resultsWindow.loadURL(tblRendererUrl.replace(/\/?$/, '/') + 'results-table.html')
@@ -98,9 +158,7 @@ function openTableResultsWindow(payload: TableResultsPayload): void {
   }
 
   resultsWindow.webContents.once('did-finish-load', () => {
-    setTimeout(() => {
-      resultsWindow.webContents.send('table-results-data', payload)
-    }, 400)
+    sendTableResultsPayload(resultsWindow, payload, 400)
   })
 }
 
@@ -345,7 +403,7 @@ app.whenReady().then(() => {
     if (!payload?.columns || !Array.isArray(payload.records)) {
       return
     }
-    openTableResultsWindow({
+    openOrUpdateTableResultsWindow({
       title: payload.title,
       columns: payload.columns,
       records: payload.records,

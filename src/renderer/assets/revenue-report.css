@@ -170,6 +170,11 @@
   justify-content: flex-start;
 }
 
+/* `.button { display: inline-block }` can override UA `[hidden]`; keep Compile Report truly hidden until shown in JS */
+#rr-compile-report-btn[hidden] {
+  display: none !important;
+}
+
 .rr-compile-fetch-status {
   font-size: 14px;
   color: var(--clio-text-muted, #5c6570);

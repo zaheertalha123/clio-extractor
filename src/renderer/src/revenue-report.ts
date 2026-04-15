@@ -569,6 +569,8 @@ export function setupRevenueReportPage(): void {
     }
   }
 
+  syncCompileReportButtonVisibility()
+
   fetchRecordsBtn?.addEventListener('click', () => {
     void (async () => {
       const cfSel = getCustomFieldsSelection()
@@ -863,9 +865,9 @@ function buildRevenueReportTablePayload(
   matters: unknown[],
   customFieldIds: number[]
 ): { columns: Array<{ key: string; label: string }>; records: Record<string, unknown>[] } {
+  /** User-facing "Matter ID" is Clio display #; `clio_matter_id` is the API id for backend use (not shown). */
   const baseCols = [
-    { key: 'matter_id', label: 'Matter ID' },
-    { key: 'display_number', label: 'Display #' },
+    { key: 'display_number', label: 'Matter ID' },
     { key: 'status', label: 'Status' }
   ]
   const cfCols = customFieldIds.map((id) => ({
@@ -878,7 +880,7 @@ function buildRevenueReportTablePayload(
     const m = raw as Record<string, unknown>
     const cfvs = (m.custom_field_values as MatterCfValueRow[] | undefined) ?? []
     const row: Record<string, unknown> = {
-      matter_id: m.id ?? '',
+      clio_matter_id: m.id ?? '',
       display_number: m.display_number ?? '',
       status: m.status ?? ''
     }

@@ -9,7 +9,8 @@ export default defineConfig({
         input: {
           index: 'src/renderer/index.html',
           results: 'src/renderer/results.html',
-          'results-unpaid-bills': 'src/renderer/results-unpaid-bills.html'
+          'results-unpaid-bills': 'src/renderer/results-unpaid-bills.html',
+          'results-table': 'src/renderer/results-table.html'
         }
       }
     }

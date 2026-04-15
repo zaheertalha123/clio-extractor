@@ -1,5 +1,12 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+export interface TableResultsPayload {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  csvBaseName?: string
+}
+
 interface ClioUserResponse {
   data: { id?: number; name?: string; [key: string]: unknown } | null
   error?: string
@@ -38,7 +45,8 @@ interface ClioAPI {
 
 interface ResultsAPI {
   onResultsData: (callback: (data: unknown[]) => void) => void
-  saveCsv: (content: string) => Promise<{ success: boolean; path?: string }>
+  onTableResultsData: (callback: (payload: TableResultsPayload) => void) => void
+  saveCsv: (content: string, defaultName?: string) => Promise<{ success: boolean; path?: string }>
 }
 
 interface UpdaterAPI {
@@ -60,6 +68,7 @@ declare global {
       results: ResultsAPI
       openResultsWindow: (data: unknown[]) => Promise<void>
       openUnpaidBillsResults: (data: unknown[]) => Promise<void>
+      openTableResults: (payload: TableResultsPayload) => Promise<void>
       updater: UpdaterAPI
       getAppVersion: () => Promise<string>
     }

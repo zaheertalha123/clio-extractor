@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+export interface TableResultsPayload {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  csvBaseName?: string
+}
+
 // Custom APIs for renderer
 const api = {
   clio: {
@@ -36,10 +43,14 @@ const api = {
     onResultsData: (callback: (data: unknown[]) => void) => {
       ipcRenderer.on('results-data', (_event, data) => callback(data))
     },
+    onTableResultsData: (callback: (payload: TableResultsPayload) => void) => {
+      ipcRenderer.on('table-results-data', (_event, payload) => callback(payload))
+    },
     saveCsv: (content: string, defaultName?: string) => ipcRenderer.invoke('dialog:save-csv', content, defaultName)
   },
   openResultsWindow: (data: unknown[]) => ipcRenderer.invoke('window:open-results', data),
   openUnpaidBillsResults: (data: unknown[]) => ipcRenderer.invoke('window:open-unpaid-bills-results', data),
+  openTableResults: (payload: TableResultsPayload) => ipcRenderer.invoke('window:open-table-results', payload),
   updater: {
     onUpdateChecking: (callback: () => void) => {
       ipcRenderer.on('updater:checking', () => callback())

@@ -1,3 +1,5 @@
+import { resolvePicklistOptionLabel } from './revenue-report-picklist-maps'
+
 export type MatterPickerRow = {
   id: number
   display_number: string
@@ -297,8 +299,11 @@ export function getRevenueReportPageHtml(): string {
       </section>
 
       <div class="form-actions rr-compile-actions">
-        <button type="button" id="rr-compile-report-btn" class="button">Compile Report</button>
+        <button type="button" id="rr-fetch-records-btn" class="button">Fetch records</button>
         <span class="rr-compile-fetch-status" id="rr-compile-fetch-status" aria-live="polite"></span>
+        <button type="button" id="rr-compile-report-btn" class="button" hidden>
+          Compile Report
+        </button>
       </div>
     </div>
   `
@@ -549,23 +554,39 @@ export function setupRevenueReportPage(): void {
 
   setupCustomFieldsSection()
 
-  const compileBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null
+  const fetchRecordsBtn = document.getElementById('rr-fetch-records-btn') as HTMLButtonElement | null
+  const compileReportBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null
   const compileFetchStatusEl = document.getElementById('rr-compile-fetch-status')
 
-  compileBtn?.addEventListener('click', () => {
+  let lastFetchedMatters: unknown[] = []
+  let lastFetchCustomFieldIds: number[] = []
+
+  const syncCompileReportButtonVisibility = (): void => {
+    const hasRecords =
+      lastFetchedMatters.length > 0 && lastFetchCustomFieldIds.length > 0
+    if (compileReportBtn) {
+      compileReportBtn.hidden = !hasRecords
+    }
+  }
+
+  fetchRecordsBtn?.addEventListener('click', () => {
     void (async () => {
       const cfSel = getCustomFieldsSelection()
       const customFieldIds = resolveCustomFieldClioIdsForRequest(cfSel)
       const allMatters = allMattersEl.checked
       const matterDisplayNumbers = state.selected.map((m) => m.display_number)
 
-      console.log('Compile Report', {
+      console.log('Fetch records (revenue report)', {
         matterStatus: matterStatusEl.value || null,
         matters: state.selected,
         allMatters,
         customFields: cfSel,
         customFieldIds
       })
+
+      lastFetchedMatters = []
+      lastFetchCustomFieldIds = []
+      syncCompileReportButtonVisibility()
 
       if (compileFetchStatusEl) {
         compileFetchStatusEl.textContent = ''
@@ -591,7 +612,7 @@ export function setupRevenueReportPage(): void {
       const matterStatusRaw = matterStatusEl.value?.trim()
       const matterStatus = matterStatusRaw !== '' ? matterStatusRaw : undefined
 
-      compileBtn!.disabled = true
+      fetchRecordsBtn!.disabled = true
       if (compileFetchStatusEl) {
         compileFetchStatusEl.textContent = 'Fetching…'
       }
@@ -610,19 +631,35 @@ export function setupRevenueReportPage(): void {
           }
           return
         }
+        lastFetchedMatters = Array.isArray(result.data) ? result.data : []
+        lastFetchCustomFieldIds = customFieldIds
         if (compileFetchStatusEl) {
           compileFetchStatusEl.textContent = `No. of records fetched: ${result.recordCount}`
           compileFetchStatusEl.classList.remove('rr-compile-fetch-status--error')
         }
+        syncCompileReportButtonVisibility()
       } catch (e) {
         if (compileFetchStatusEl) {
           compileFetchStatusEl.textContent = e instanceof Error ? e.message : 'Request failed'
           compileFetchStatusEl.classList.add('rr-compile-fetch-status--error')
         }
       } finally {
-        compileBtn!.disabled = false
+        fetchRecordsBtn!.disabled = false
       }
     })()
+  })
+
+  compileReportBtn?.addEventListener('click', () => {
+    if (lastFetchedMatters.length === 0 || lastFetchCustomFieldIds.length === 0) {
+      return
+    }
+    const { columns, records } = buildRevenueReportTablePayload(lastFetchedMatters, lastFetchCustomFieldIds)
+    void window.api.openTableResults({
+      title: 'Revenue report',
+      columns,
+      records,
+      csvBaseName: 'revenue-report'
+    })
   })
 }
 
@@ -746,4 +783,110 @@ function resolveCustomFieldClioIdsForRequest(sel: RevenueReportCustomFieldsSelec
     return [...new Set(ids)]
   }
   return [...new Set(sel.fieldIds)]
+}
+
+type MatterCfValueRow = {
+  value?: unknown
+  field_name?: string
+  custom_field?: { id?: number }
+  /** Present for picklist fields from Clio */
+  picklist_option?: { id?: number; option?: string }
+}
+
+function clioFieldLabelForId(id: number): string {
+  for (const [name, val] of Object.entries(MATTER_CUSTOM_FIELD_CLIO_IDS)) {
+    if (val === id) {
+      return name
+    }
+  }
+  return `Field ${id}`
+}
+
+function formatTableCellValue(v: unknown): string {
+  if (v == null) {
+    return ''
+  }
+  if (typeof v === 'object') {
+    return JSON.stringify(v)
+  }
+  return String(v)
+}
+
+function formatCustomFieldCellDisplay(cfv: MatterCfValueRow): string {
+  const po = cfv.picklist_option
+  if (po != null && typeof po === 'object') {
+    const label = po.option != null ? String(po.option).trim() : ''
+    if (label !== '') {
+      return label
+    }
+    const fromId = resolvePicklistOptionLabel(po.id)
+    if (fromId != null) {
+      return fromId.trim()
+    }
+  }
+  const v = cfv.value
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    const mapped = resolvePicklistOptionLabel(v)
+    if (mapped != null) {
+      return mapped.trim()
+    }
+  }
+  if (typeof v === 'string' && /^\d+$/.test(v)) {
+    const mapped = resolvePicklistOptionLabel(Number(v))
+    if (mapped != null) {
+      return mapped.trim()
+    }
+  }
+  return formatTableCellValue(v)
+}
+
+function findCustomFieldCellValue(cfvs: MatterCfValueRow[], fieldId: number): string {
+  if (!Array.isArray(cfvs)) {
+    return ''
+  }
+  for (const cfv of cfvs) {
+    const cid = cfv.custom_field?.id
+    if (cid != null && Number(cid) === fieldId) {
+      return formatCustomFieldCellDisplay(cfv)
+    }
+  }
+  const want = clioFieldLabelForId(fieldId)
+  for (const cfv of cfvs) {
+    if (String(cfv.field_name ?? '') === want) {
+      return formatCustomFieldCellDisplay(cfv)
+    }
+  }
+  return ''
+}
+
+function buildRevenueReportTablePayload(
+  matters: unknown[],
+  customFieldIds: number[]
+): { columns: Array<{ key: string; label: string }>; records: Record<string, unknown>[] } {
+  const baseCols = [
+    { key: 'matter_id', label: 'Matter ID' },
+    { key: 'display_number', label: 'Display #' },
+    { key: 'status', label: 'Status' }
+  ]
+  const cfCols = customFieldIds.map((id) => ({
+    key: `cf_${id}`,
+    label: clioFieldLabelForId(id)
+  }))
+  const columns = [...baseCols, ...cfCols]
+
+  const records = matters.map((raw) => {
+    const m = raw as Record<string, unknown>
+    const cfvs = (m.custom_field_values as MatterCfValueRow[] | undefined) ?? []
+    const row: Record<string, unknown> = {
+      matter_id: m.id ?? '',
+      display_number: m.display_number ?? '',
+      status: m.status ?? ''
+    }
+    for (const id of customFieldIds) {
+      row[`cf_${id}`] = findCustomFieldCellValue(cfvs, id)
+    }
+    return row
+  })
+
+  return { columns, records }
 }

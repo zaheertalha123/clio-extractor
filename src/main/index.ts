@@ -70,6 +70,40 @@ function openUnpaidBillsResultsWindow(data: UnpaidBillsRow[]): void {
   })
 }
 
+export type TableResultsPayload = {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  /** Default filename for CSV export (without extension) */
+  csvBaseName?: string
+}
+
+function openTableResultsWindow(payload: TableResultsPayload): void {
+  const resultsWindow = new BrowserWindow({
+    width: 1400,
+    height: 800,
+    title: payload.title || 'Report',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  const tblRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && tblRendererUrl) {
+    resultsWindow.loadURL(tblRendererUrl.replace(/\/?$/, '/') + 'results-table.html')
+  } else {
+    resultsWindow.loadFile(join(__dirname, '../renderer/results-table.html'))
+  }
+
+  resultsWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      resultsWindow.webContents.send('table-results-data', payload)
+    }, 400)
+  })
+}
+
 function createWindow(): void {
   // Create the browser window.
   const win = new BrowserWindow({
@@ -305,6 +339,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('window:open-unpaid-bills-results', (_event, data: UnpaidBillsRow[]) => {
     openUnpaidBillsResultsWindow(data)
+  })
+
+  ipcMain.handle('window:open-table-results', (_event, payload: TableResultsPayload) => {
+    if (!payload?.columns || !Array.isArray(payload.records)) {
+      return
+    }
+    openTableResultsWindow({
+      title: payload.title,
+      columns: payload.columns,
+      records: payload.records,
+      csvBaseName: payload.csvBaseName
+    })
   })
 
   ipcMain.handle('updater:quit-and-install', () => {

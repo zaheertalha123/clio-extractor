@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+export interface TableResultsPayload {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  csvBaseName?: string
+}
+
 // Custom APIs for renderer
 const api = {
   clio: {
@@ -12,6 +19,7 @@ const api = {
     getUsers: () => ipcRenderer.invoke('clio:get-users'),
     getPracticeAreas: () => ipcRenderer.invoke('clio:get-practice-areas'),
     getBillableClients: () => ipcRenderer.invoke('clio:get-billable-clients'),
+    getMattersByDisplayId: (query: string) => ipcRenderer.invoke('clio:get-matters-by-display-id', query),
     fetchFirmRevenue: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-firm-revenue', filters),
     fetchUnpaidBills: (filters: Record<string, unknown>) => ipcRenderer.invoke('clio:fetch-unpaid-bills', filters),
     fetchCustomFields: (parentType: 'Contact' | 'Matter') => ipcRenderer.invoke('clio:fetch-custom-fields', parentType),
@@ -23,16 +31,28 @@ const api = {
     fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) =>
       ipcRenderer.invoke('clio:fetch-matter-custom-field-values', matterIdentifier, customFieldIds),
     fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) =>
-      ipcRenderer.invoke('clio:fetch-contact-custom-field-values', contactIdentifier, customFieldIds)
+      ipcRenderer.invoke('clio:fetch-contact-custom-field-values', contactIdentifier, customFieldIds),
+    fetchCustomFieldsMatterData: (payload: {
+      allMatters: boolean
+      matterDisplayNumbers: string[]
+      customFieldIds: number[]
+      matterStatus?: string
+    }) => ipcRenderer.invoke('clio:fetch-custom-fields-matter-data', payload)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {
       ipcRenderer.on('results-data', (_event, data) => callback(data))
     },
+    onTableResultsData: (callback: (payload: TableResultsPayload) => void) => {
+      ipcRenderer.on('table-results-data', (_event, payload) => callback(payload))
+    },
     saveCsv: (content: string, defaultName?: string) => ipcRenderer.invoke('dialog:save-csv', content, defaultName)
   },
   openResultsWindow: (data: unknown[]) => ipcRenderer.invoke('window:open-results', data),
   openUnpaidBillsResults: (data: unknown[]) => ipcRenderer.invoke('window:open-unpaid-bills-results', data),
+  openTableResults: (payload: TableResultsPayload) => ipcRenderer.invoke('window:open-table-results', payload),
+  showClioConnectionDialog: () =>
+    ipcRenderer.invoke('dialog:clio-connection-failed') as Promise<'retry' | 'signout'>,
   updater: {
     onUpdateChecking: (callback: () => void) => {
       ipcRenderer.on('updater:checking', () => callback())

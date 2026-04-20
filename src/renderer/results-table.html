@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Table results</title>
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+  />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 16px 20px 24px;
+      background: #f5f7fa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 {
+      margin-bottom: 12px;
+      color: #003e7e;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .btn {
+      padding: 10px 20px;
+      background: #003e7e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover:not(:disabled) { background: #0055aa; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #5c6570; }
+    .btn-secondary:hover:not(:disabled) { background: #3d4449; }
+    .meta {
+      font-size: 14px;
+      color: #5c6570;
+    }
+    .table-outer {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .table-scroll {
+      flex: 1;
+      min-height: 200px;
+      max-height: calc(100vh - 220px);
+      overflow: auto;
+    }
+    table {
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: max-content;
+    }
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e6ed;
+      border-right: 1px solid #eef2f6;
+      max-width: 420px;
+      vertical-align: top;
+      word-break: break-word;
+    }
+    th:last-child, td:last-child { border-right: none; }
+    th {
+      background: #003e7e;
+      color: white;
+      font-weight: 600;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    .empty {
+      padding: 40px;
+      text-align: center;
+      color: #6b7c93;
+    }
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid #e0e6ed;
+      background: #fafbfc;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .pagination span { font-size: 14px; color: #333; }
+  </style>
+</head>
+<body>
+  <h1 id="reportTitle">Report</h1>
+  <div class="toolbar">
+    <button type="button" id="exportCsv" class="btn">Export CSV</button>
+    <span id="summary" class="meta">Loading…</span>
+  </div>
+  <div class="table-outer">
+    <div class="table-scroll">
+      <table id="dataTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div id="empty" class="empty" style="display: none">No data to display</div>
+    </div>
+    <div class="pagination" id="paginationBar" style="display: none">
+      <button type="button" id="btnPrev" class="btn btn-secondary">Previous</button>
+      <span id="pageInfo">Page 1 of 1</span>
+      <button type="button" id="btnNext" class="btn btn-secondary">Next</button>
+    </div>
+  </div>
+  <script>
+    const PAGE_SIZE = 100
+
+    let columns = []
+    let records = []
+    let currentPage = 1
+    let csvBaseName = 'report'
+
+    window.api.results.onTableResultsData((payload) => {
+      columns = Array.isArray(payload?.columns) ? payload.columns : []
+      records = Array.isArray(payload?.records) ? payload.records : []
+      csvBaseName = typeof payload?.csvBaseName === 'string' && payload.csvBaseName ? payload.csvBaseName : 'report'
+      const titleEl = document.getElementById('reportTitle')
+      if (titleEl) {
+        titleEl.textContent = typeof payload?.title === 'string' && payload.title ? payload.title : 'Report'
+      }
+      currentPage = 1
+      render()
+    })
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+    }
+
+    function cellStr(val) {
+      if (val === undefined || val === null) return ''
+      if (typeof val === 'object') return JSON.stringify(val)
+      return String(val)
+    }
+
+    function render() {
+      const thead = document.getElementById('tableHead')
+      const tbody = document.getElementById('tableBody')
+      const empty = document.getElementById('empty')
+      const summary = document.getElementById('summary')
+      const paginationBar = document.getElementById('paginationBar')
+      const pageInfo = document.getElementById('pageInfo')
+      const btnPrev = document.getElementById('btnPrev')
+      const btnNext = document.getElementById('btnNext')
+
+      const total = records.length
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+      if (currentPage > totalPages) currentPage = totalPages
+      if (currentPage < 1) currentPage = 1
+
+      if (summary) {
+        summary.textContent = total + ' record(s)' + (total > PAGE_SIZE ? ' · ' + PAGE_SIZE + ' per page' : '')
+      }
+
+      if (total === 0 || columns.length === 0) {
+        thead.innerHTML = ''
+        tbody.innerHTML = ''
+        if (empty) empty.style.display = 'block'
+        if (paginationBar) paginationBar.style.display = 'none'
+        return
+      }
+
+      if (empty) empty.style.display = 'none'
+      if (paginationBar) paginationBar.style.display = 'flex'
+
+      const start = (currentPage - 1) * PAGE_SIZE
+      const pageRows = records.slice(start, start + PAGE_SIZE)
+
+      thead.innerHTML =
+        '<tr>' + columns.map((c) => '<th>' + escHtml(c.label || c.key) + '</th>').join('') + '</tr>'
+
+      tbody.innerHTML = pageRows
+        .map((row) => {
+          return (
+            '<tr>' +
+            columns
+              .map((c) => '<td>' + escHtml(cellStr(row[c.key])) + '</td>')
+              .join('') +
+            '</tr>'
+          )
+        })
+        .join('')
+
+      if (pageInfo) {
+        pageInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages
+      }
+      if (btnPrev) btnPrev.disabled = currentPage <= 1
+      if (btnNext) btnNext.disabled = currentPage >= totalPages
+    }
+
+    document.getElementById('btnPrev')?.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--
+        render()
+      }
+    })
+
+    document.getElementById('btnNext')?.addEventListener('click', () => {
+      const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE))
+      if (currentPage < totalPages) {
+        currentPage++
+        render()
+      }
+    })
+
+    function toCsv() {
+      if (records.length === 0 || columns.length === 0) return ''
+      const header = columns.map((c) => '"' + String(c.label || c.key).replace(/"/g, '""') + '"').join(',')
+      const rows = records.map((row) =>
+        columns
+          .map((c) => {
+            const str = cellStr(row[c.key])
+            return '"' + str.replace(/"/g, '""') + '"'
+          })
+          .join(',')
+      )
+      return [header, ...rows].join('\r\n')
+    }
+
+    document.getElementById('exportCsv')?.addEventListener('click', async () => {
+      const csv = toCsv()
+      if (!csv) return
+      const result = await window.api.results.saveCsv(csv, csvBaseName)
+      if (result?.success) {
+        alert('Exported successfully to:\n' + result.path)
+      }
+    })
+  </script>
+</body>
+</html>

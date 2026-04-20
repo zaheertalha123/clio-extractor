@@ -1,5 +1,12 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+export interface TableResultsPayload {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  csvBaseName?: string
+}
+
 interface ClioUserResponse {
   data: { id?: number; name?: string; [key: string]: unknown } | null
   error?: string
@@ -14,6 +21,10 @@ interface ClioAPI {
   getUsers: () => Promise<{ data: unknown; error?: string }>
   getPracticeAreas: () => Promise<{ data: unknown; error?: string }>
   getBillableClients: () => Promise<{ data: unknown; error?: string }>
+  getMattersByDisplayId: (query: string) => Promise<{
+    data: Array<{ id: number; display_number: string; description: string | null }>
+    error?: string
+  }>
   fetchFirmRevenue: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchUnpaidBills: (filters: Record<string, unknown>) => Promise<{ data: unknown[]; error?: string }>
   fetchCustomFields: (parentType: 'Contact' | 'Matter') => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
@@ -24,11 +35,18 @@ interface ClioAPI {
   fetchBillById: (id: number) => Promise<{ data: Record<string, unknown> | null; error?: string }>
   fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
   fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
+  fetchCustomFieldsMatterData: (payload: {
+    allMatters: boolean
+    matterDisplayNumbers: string[]
+    customFieldIds: number[]
+    matterStatus?: string
+  }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
 }
 
 interface ResultsAPI {
   onResultsData: (callback: (data: unknown[]) => void) => void
-  saveCsv: (content: string) => Promise<{ success: boolean; path?: string }>
+  onTableResultsData: (callback: (payload: TableResultsPayload) => void) => void
+  saveCsv: (content: string, defaultName?: string) => Promise<{ success: boolean; path?: string }>
 }
 
 interface UpdaterAPI {
@@ -50,6 +68,8 @@ declare global {
       results: ResultsAPI
       openResultsWindow: (data: unknown[]) => Promise<void>
       openUnpaidBillsResults: (data: unknown[]) => Promise<void>
+      openTableResults: (payload: TableResultsPayload) => Promise<void>
+      showClioConnectionDialog: () => Promise<'retry' | 'signout'>
       updater: UpdaterAPI
       getAppVersion: () => Promise<string>
     }

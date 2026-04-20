@@ -1,4 +1,11 @@
 import ClioAuthManager from './auth'
+import { getMattersByDisplayId as fetchMattersByDisplayId } from './api/matters/get-matter-by-display-id'
+import type { MatterByDisplayIdRow } from './api/matters/get-matter-by-display-id'
+import {
+  fetchCustomFieldsMatterData,
+  type CustomFieldsMatterFetchResult,
+  type CustomFieldsMatterFetchInput
+} from './api/custom-fields/custom-fields-matter-fetch'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -54,11 +61,16 @@ class ClioAPIClient {
 
       const data = await response.json()
       return { data }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('API request error:', error)
+      let message = error instanceof Error ? error.message : 'Unknown error'
+      const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined
+      if (cause instanceof Error) {
+        message = `${message}: ${cause.message}`
+      }
       return {
         data: null,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: message
       }
     }
   }
@@ -103,6 +115,25 @@ class ClioAPIClient {
     const endpoint = qs ? `/matters?${qs}` : '/matters'
 
     return await this.makeRequest(endpoint)
+  }
+
+  /**
+   * Custom Fields page: fetch matters with selected custom_field_values via GET /matters (paginated or per display_number).
+   */
+  async fetchCustomFieldsMatterData(
+    params: CustomFieldsMatterFetchInput
+  ): Promise<CustomFieldsMatterFetchResult> {
+    return fetchCustomFieldsMatterData(
+      (endpoint, options) => this.makeRequest(endpoint, options),
+      params
+    )
+  }
+
+  /**
+   * List matters matching a display-ID search query. Delegates to api/matters/get-matter-by-display-id.
+   */
+  async getMattersByDisplayId(query: string): Promise<{ data: MatterByDisplayIdRow[]; error?: string }> {
+    return fetchMattersByDisplayId((endpoint, options) => this.makeRequest(endpoint, options), query)
   }
 
   /**

@@ -70,6 +70,98 @@ function openUnpaidBillsResultsWindow(data: UnpaidBillsRow[]): void {
   })
 }
 
+export type TableResultsPayload = {
+  title?: string
+  columns: Array<{ key: string; label: string }>
+  records: Array<Record<string, unknown>>
+  /** Default filename for CSV export (without extension) */
+  csvBaseName?: string
+}
+
+/** Single results-table window: focus if same data; replace content if data changed. */
+let tableResultsWindow: BrowserWindow | null = null
+let tableResultsPayloadFingerprint: string | null = null
+
+function fingerprintTableResultsPayload(payload: TableResultsPayload): string {
+  try {
+    return JSON.stringify({
+      title: payload.title ?? '',
+      csvBaseName: payload.csvBaseName ?? '',
+      columns: payload.columns,
+      records: payload.records
+    })
+  } catch {
+    return `err-${Date.now()}`
+  }
+}
+
+function focusTableResultsWindow(win: BrowserWindow): void {
+  if (win.isMinimized()) {
+    win.restore()
+  }
+  win.show()
+  win.focus()
+}
+
+function sendTableResultsPayload(win: BrowserWindow, payload: TableResultsPayload, delayMs: number): void {
+  const send = (): void => {
+    win.webContents.send('table-results-data', payload)
+  }
+  if (delayMs > 0) {
+    setTimeout(send, delayMs)
+  } else {
+    send()
+  }
+}
+
+function openOrUpdateTableResultsWindow(payload: TableResultsPayload): void {
+  const fp = fingerprintTableResultsPayload(payload)
+
+  if (tableResultsWindow && !tableResultsWindow.isDestroyed()) {
+    if (fp === tableResultsPayloadFingerprint) {
+      focusTableResultsWindow(tableResultsWindow)
+      return
+    }
+    tableResultsPayloadFingerprint = fp
+    tableResultsWindow.setTitle(payload.title || 'Report')
+    sendTableResultsPayload(tableResultsWindow, payload, 0)
+    focusTableResultsWindow(tableResultsWindow)
+    return
+  }
+
+  const resultsWindow = new BrowserWindow({
+    width: 1400,
+    height: 800,
+    title: payload.title || 'Report',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  tableResultsWindow = resultsWindow
+  tableResultsPayloadFingerprint = fp
+
+  resultsWindow.on('closed', () => {
+    if (tableResultsWindow === resultsWindow) {
+      tableResultsWindow = null
+      tableResultsPayloadFingerprint = null
+    }
+  })
+
+  const tblRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && tblRendererUrl) {
+    resultsWindow.loadURL(tblRendererUrl.replace(/\/?$/, '/') + 'results-table.html')
+  } else {
+    resultsWindow.loadFile(join(__dirname, '../renderer/results-table.html'))
+  }
+
+  resultsWindow.webContents.once('did-finish-load', () => {
+    sendTableResultsPayload(resultsWindow, payload, 400)
+  })
+}
+
 function createWindow(): void {
   // Create the browser window.
   const win = new BrowserWindow({
@@ -212,6 +304,11 @@ app.whenReady().then(() => {
     return await apiClient.getUnpaidBillsData(filters)
   })
 
+  ipcMain.handle('clio:get-matters-by-display-id', async (_event, query: string) => {
+    if (!apiClient) return { data: [], error: 'API not initialized' }
+    return await apiClient.getMattersByDisplayId(typeof query === 'string' ? query : '')
+  })
+
   ipcMain.handle('clio:fetch-custom-fields', async (_event, parentType: string) => {
     if (!apiClient) return { data: [], error: 'API not initialized' }
     if (parentType !== 'Contact' && parentType !== 'Matter') {
@@ -255,6 +352,50 @@ app.whenReady().then(() => {
     return await apiClient.getContactCustomFieldValues(contactIdentifier, customFieldIds)
   })
 
+  ipcMain.handle(
+    'clio:fetch-custom-fields-matter-data',
+    async (
+      _event,
+      payload: {
+        allMatters: boolean
+        matterDisplayNumbers: string[]
+        customFieldIds: number[]
+        matterStatus?: string
+      }
+    ) => {
+      if (!apiClient) {
+        return { data: [], recordCount: 0, error: 'API not initialized' }
+      }
+      return await apiClient.fetchCustomFieldsMatterData({
+        allMatters: Boolean(payload?.allMatters),
+        matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
+        customFieldIds: Array.isArray(payload?.customFieldIds) ? payload.customFieldIds : [],
+        matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
+          ? payload.matterStatus.trim()
+          : undefined
+      })
+    }
+  )
+
+  ipcMain.handle('dialog:clio-connection-failed', async (event): Promise<'retry' | 'signout'> => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
+    if (!win || win.isDestroyed()) {
+      return 'signout'
+    }
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Cannot reach Clio',
+      message: 'Failed to connect to Clio.',
+      detail:
+        'Check your internet connection and try again. If the problem continues, sign out and sign in when you are online.',
+      buttons: ['Try again', 'Sign out'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    })
+    return response === 0 ? 'retry' : 'signout'
+  })
+
   ipcMain.handle('dialog:save-csv', async (_event, csvContent: string, defaultName?: string) => {
     const baseName = defaultName || 'firm-revenue'
     const result = await dialog.showSaveDialog({
@@ -275,6 +416,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('window:open-unpaid-bills-results', (_event, data: UnpaidBillsRow[]) => {
     openUnpaidBillsResultsWindow(data)
+  })
+
+  ipcMain.handle('window:open-table-results', (_event, payload: TableResultsPayload) => {
+    if (!payload?.columns || !Array.isArray(payload.records)) {
+      return
+    }
+    openOrUpdateTableResultsWindow({
+      title: payload.title,
+      columns: payload.columns,
+      records: payload.records,
+      csvBaseName: payload.csvBaseName
+    })
   })
 
   ipcMain.handle('updater:quit-and-install', () => {

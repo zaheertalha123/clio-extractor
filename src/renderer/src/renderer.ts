@@ -11,9 +11,10 @@ import {
   setUnpaidBillsStatus
 } from './unpaid-bills'
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
+import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills'
+type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -22,6 +23,9 @@ interface CachedOptions {
 }
 
 let cachedOptions: CachedOptions | null = null
+
+/** Avoid re-injecting page HTML and re-running setup when the user clicks the current nav tab again. */
+let activePageId: PageId | null = null
 
 const PAGES: Record<PageId, { title: string; description: string }> = {
   home: {
@@ -39,6 +43,10 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   'unpaid-bills': {
     title: 'Unpaid Bills',
     description: 'Extract unpaid bills (draft, awaiting approval, awaiting payment) from Clio.'
+  },
+  'custom-fields': {
+    title: 'Custom Fields',
+    description: 'Fetch and export Matter custom field values for selected matters.'
   }
 }
 
@@ -47,7 +55,7 @@ function getHomePageHtml(): string {
     <div class="home-page">
       <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
-      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Firm Revenue or Unpaid Bills.</p>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Custom Fields, Firm Revenue, or Unpaid Bills.</p>
     </div>
   `
 }
@@ -57,6 +65,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'schema') return getSchemaPageHtml()
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
+  if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
 }
 
@@ -172,10 +181,14 @@ async function checkAuthStatus(): Promise<void> {
     if (isAuthenticated) {
       if (loginView) loginView.style.display = 'none'
       if (appView) appView.style.display = 'flex'
-      await loadCurrentUser()
+      const userFlow = await loadCurrentUser()
+      if (userFlow === 'signed-out') {
+        return
+      }
       await loadAppVersion()
       await loadPage('home')
     } else {
+      activePageId = null
       if (loginView) loginView.style.display = 'flex'
       if (appView) appView.style.display = 'none'
       if (loginContainer) loginContainer.style.display = 'block'
@@ -199,29 +212,80 @@ async function loadAppVersion(): Promise<void> {
   }
 }
 
-async function loadCurrentUser(): Promise<void> {
+function isLikelyClioConnectionFailure(message: string): boolean {
+  const m = message.toLowerCase()
+  return (
+    m.includes('fetch failed') ||
+    m.includes('enotfound') ||
+    m.includes('econnrefused') ||
+    m.includes('etimedout') ||
+    m.includes('enetunreach') ||
+    m.includes('getaddrinfo') ||
+    m.includes('eai_again') ||
+    m.includes('cert_authority_invalid') ||
+    m.includes('unable to verify the first certificate')
+  )
+}
+
+/** Loads the signed-in user from Clio; on network failure offers Try again / Sign out. */
+async function loadCurrentUser(): Promise<'signed-out' | undefined> {
   const userNameEl = document.getElementById('user-name')
-  if (!userNameEl) return
+  if (!userNameEl) {
+    return undefined
+  }
 
-  try {
-    const { data, error } = await window.api.clio.getCurrentUser()
+  while (true) {
+    try {
+      const { data, error } = await window.api.clio.getCurrentUser()
 
-    if (error || !data) {
+      if (!error && data) {
+        const apiResponse = data as { data?: { name?: string; id?: number } }
+        const user = apiResponse?.data
+        userNameEl.textContent = user?.name ?? 'User'
+        return undefined
+      }
+
+      const errMsg = error ?? 'Unknown error'
+      if (isLikelyClioConnectionFailure(errMsg) && window.api.showClioConnectionDialog) {
+        const choice = await window.api.showClioConnectionDialog()
+        if (choice === 'signout') {
+          await window.api.clio.logout()
+          activePageId = null
+          cachedOptions = null
+          await checkAuthStatus()
+          return 'signed-out'
+        }
+        continue
+      }
+
       userNameEl.textContent = 'User'
-      return
+      return undefined
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (isLikelyClioConnectionFailure(msg) && window.api.showClioConnectionDialog) {
+        const choice = await window.api.showClioConnectionDialog()
+        if (choice === 'signout') {
+          await window.api.clio.logout()
+          activePageId = null
+          cachedOptions = null
+          await checkAuthStatus()
+          return 'signed-out'
+        }
+        continue
+      }
+      userNameEl.textContent = 'User'
+      return undefined
     }
-
-    const apiResponse = data as { data?: { name?: string; id?: number } }
-    const user = apiResponse?.data
-    userNameEl.textContent = user?.name ?? 'User'
-  } catch {
-    userNameEl.textContent = 'User'
   }
 }
 
 async function loadPage(pageId: PageId): Promise<void> {
+  if (activePageId === pageId) return
+
   const contentArea = document.getElementById('page-content')
   if (!contentArea) return
+
+  activePageId = pageId
 
   contentArea.innerHTML = renderPageContent(pageId)
 
@@ -246,6 +310,9 @@ async function loadPage(pageId: PageId): Promise<void> {
   if (pageId === 'unpaid-bills') {
     await loadUnpaidBillsOptions()
     setupUnpaidBillsListeners()
+  }
+  if (pageId === 'custom-fields') {
+    setupCustomFieldsPage()
   }
 }
 

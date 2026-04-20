@@ -11,10 +11,10 @@ import {
   setUnpaidBillsStatus
 } from './unpaid-bills'
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
-import { getRevenueReportPageHtml, setupRevenueReportPage } from './revenue-report'
+import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills' | 'revenue-report'
+type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -44,9 +44,9 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
     title: 'Unpaid Bills',
     description: 'Extract unpaid bills (draft, awaiting approval, awaiting payment) from Clio.'
   },
-  'revenue-report': {
-    title: 'Revenue Report',
-    description: 'Revenue reporting (coming soon).'
+  'custom-fields': {
+    title: 'Custom Fields',
+    description: 'Fetch and export Matter custom field values for selected matters.'
   }
 }
 
@@ -55,7 +55,7 @@ function getHomePageHtml(): string {
     <div class="home-page">
       <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
-      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Revenue Report, Firm Revenue, or Unpaid Bills.</p>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Custom Fields, Firm Revenue, or Unpaid Bills.</p>
     </div>
   `
 }
@@ -65,7 +65,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'schema') return getSchemaPageHtml()
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
-  if (pageId === 'revenue-report') return getRevenueReportPageHtml()
+  if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
 }
 
@@ -311,8 +311,8 @@ async function loadPage(pageId: PageId): Promise<void> {
     await loadUnpaidBillsOptions()
     setupUnpaidBillsListeners()
   }
-  if (pageId === 'revenue-report') {
-    setupRevenueReportPage()
+  if (pageId === 'custom-fields') {
+    setupCustomFieldsPage()
   }
 }
 

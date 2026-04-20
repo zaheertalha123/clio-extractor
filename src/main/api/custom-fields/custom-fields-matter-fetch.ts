@@ -1,10 +1,10 @@
 import type { ClioRequestFn } from '../shared/clio-request'
 
 /** Matter list fields focused on custom_field_values (Clio v4 single-level nesting). */
-const REVENUE_REPORT_MATTERS_FIELDS =
+const CUSTOM_FIELDS_PAGE_MATTERS_FIELDS =
   'id,display_number,status,custom_field_values{id,custom_field,field_name,value,field_type,picklist_option,field_required,field_displayed,field_display_order,matter,contact,soft_deleted}'
 
-export interface RevenueReportCustomFieldsFetchInput {
+export interface CustomFieldsMatterFetchInput {
   /** When true, list all matters (paginated) with optional status filter. */
   allMatters: boolean
   /** Matter display_number values when `allMatters` is false. */
@@ -15,7 +15,7 @@ export interface RevenueReportCustomFieldsFetchInput {
   matterStatus?: string
 }
 
-export interface RevenueReportCustomFieldDataResult {
+export interface CustomFieldsMatterFetchResult {
   /** Raw matter objects from Clio (each includes `custom_field_values` for requested ids). */
   data: unknown[]
   recordCount: number
@@ -37,7 +37,7 @@ function buildQuery(opts: {
   if (opts.matterStatus) {
     p.set('status', opts.matterStatus)
   }
-  p.set('fields', REVENUE_REPORT_MATTERS_FIELDS)
+  p.set('fields', CUSTOM_FIELDS_PAGE_MATTERS_FIELDS)
   for (const id of opts.customFieldIds) {
     p.append('custom_field_ids[]', String(id))
   }
@@ -55,10 +55,10 @@ function extractMatterRows(body: unknown): unknown[] {
 /**
  * Fetches matters with the requested custom field values via GET /matters (Clio API v4).
  */
-export async function fetchRevenueReportCustomFieldData(
+export async function fetchCustomFieldsMatterData(
   request: ClioRequestFn,
-  input: RevenueReportCustomFieldsFetchInput
-): Promise<RevenueReportCustomFieldDataResult> {
+  input: CustomFieldsMatterFetchInput
+): Promise<CustomFieldsMatterFetchResult> {
   const customFieldIds = [...new Set(input.customFieldIds)]
   if (customFieldIds.length === 0) {
     return { data: [], recordCount: 0, error: 'No custom field ids to fetch' }

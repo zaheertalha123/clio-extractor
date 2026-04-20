@@ -1,5 +1,5 @@
 /**
- * Clio picklist option id → display label for Matter custom fields (revenue report).
+ * Clio picklist option id → display label for Matter custom fields (Custom Fields page).
  * Keys are picklist_option ids from the API; values match Clio's option strings.
  */
 const PICKLIST_OPTION_ID_TO_LABEL: Readonly<Record<number, string>> = {

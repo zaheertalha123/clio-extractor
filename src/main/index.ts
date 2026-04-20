@@ -353,7 +353,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle(
-    'clio:fetch-revenue-report-custom-fields',
+    'clio:fetch-custom-fields-matter-data',
     async (
       _event,
       payload: {
@@ -366,7 +366,7 @@ app.whenReady().then(() => {
       if (!apiClient) {
         return { data: [], recordCount: 0, error: 'API not initialized' }
       }
-      return await apiClient.fetchRevenueReportCustomFieldData({
+      return await apiClient.fetchCustomFieldsMatterData({
         allMatters: Boolean(payload?.allMatters),
         matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
         customFieldIds: Array.isArray(payload?.customFieldIds) ? payload.customFieldIds : [],

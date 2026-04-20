@@ -35,7 +35,7 @@ interface ClioAPI {
   fetchBillById: (id: number) => Promise<{ data: Record<string, unknown> | null; error?: string }>
   fetchMatterCustomFieldValues: (matterIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
   fetchContactCustomFieldValues: (contactIdentifier: string, customFieldIds: number[]) => Promise<{ data: Array<Record<string, unknown>>; error?: string }>
-  fetchRevenueReportCustomFields: (payload: {
+  fetchCustomFieldsMatterData: (payload: {
     allMatters: boolean
     matterDisplayNumbers: string[]
     customFieldIds: number[]

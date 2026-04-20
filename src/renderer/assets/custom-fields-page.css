@@ -1,4 +1,4 @@
-/* Revenue Report — selected matters above Matter Status + Matter ID row */
+/* Custom Fields page — selected matters above Matter Status + Matter ID row */
 .rr-field-wrap {
   position: relative;
 }
@@ -28,7 +28,7 @@
   background: var(--clio-bg-muted, rgba(0, 0, 0, 0.03));
 }
 
-.revenue-report-form {
+.custom-fields-page-form {
   margin-top: 24px;
   max-width: 640px;
   display: flex;
@@ -160,7 +160,7 @@
   min-width: 0;
 }
 
-.revenue-report-form .rr-compile-actions {
+.custom-fields-page-form .rr-compile-actions {
   padding-top: 0;
   margin: 0;
   display: flex;

@@ -1,4 +1,4 @@
-import { resolvePicklistOptionLabel } from './revenue-report-picklist-maps'
+import { resolvePicklistOptionLabel } from './custom-fields-picklist-maps'
 
 export type MatterPickerRow = {
   id: number
@@ -6,7 +6,7 @@ export type MatterPickerRow = {
   description: string | null
 }
 
-export type RevenueReportCustomFieldsSelection =
+export type CustomFieldsPageSelection =
   | { mode: 'all' }
   | {
       mode: 'specific'
@@ -178,7 +178,7 @@ type RevenueCfFieldRow = {
   clioFieldId: number | null
 }
 
-function buildRevenueReportCustomFieldsOrdered(): RevenueCfFieldRow[] {
+function buildCustomFieldsPageFieldsOrdered(): RevenueCfFieldRow[] {
   const placed = new Set<string>([...CUSTOM_FIELDS_BLOCK1_ORDER, ...CUSTOM_FIELDS_BLOCK2_ORDER])
   const block3 = MATTER_CUSTOM_FIELD_NAMES.filter((n) => !placed.has(n))
   const merged: RevenueCfFieldRow[] = [
@@ -204,7 +204,7 @@ function buildRevenueReportCustomFieldsOrdered(): RevenueCfFieldRow[] {
   return merged
 }
 
-const PLACEHOLDER_MATTER_CUSTOM_FIELDS: ReadonlyArray<RevenueCfFieldRow> = buildRevenueReportCustomFieldsOrdered()
+const PLACEHOLDER_MATTER_CUSTOM_FIELDS: ReadonlyArray<RevenueCfFieldRow> = buildCustomFieldsPageFieldsOrdered()
 
 /** Same options as Firm Revenue → Matter Status */
 const MATTER_STATUS_OPTIONS_HTML = [
@@ -222,13 +222,13 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export function getRevenueReportPageHtml(): string {
+export function getCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
-      <h1 class="page-title">Revenue Report</h1>
-      <p class="page-description">Add one or more matters by display ID.</p>
+      <h1 class="page-title">Custom Fields</h1>
+      <p class="page-description">Select matters and Matter custom fields, then fetch records.</p>
     </div>
-    <div class="revenue-report-form">
+    <div class="custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="rr-section-matter-title">
         <h2 class="rr-section-title" id="rr-section-matter-title">Matter</h2>
         <div class="rr-matter-block" data-rr-matter-field>
@@ -302,7 +302,7 @@ export function getRevenueReportPageHtml(): string {
         <button type="button" id="rr-fetch-records-btn" class="button">Fetch records</button>
         <span class="rr-compile-fetch-status" id="rr-compile-fetch-status" aria-live="polite"></span>
         <button type="button" id="rr-compile-report-btn" class="button" hidden>
-          Compile Report
+          Open table
         </button>
       </div>
     </div>
@@ -413,7 +413,7 @@ function renderChipRow(els: Elements, state: UiState): void {
   }
 }
 
-export function setupRevenueReportPage(): void {
+export function setupCustomFieldsPage(): void {
   const els = getElements()
   if (!els) return
 
@@ -578,7 +578,7 @@ export function setupRevenueReportPage(): void {
       const allMatters = allMattersEl.checked
       const matterDisplayNumbers = state.selected.map((m) => m.display_number)
 
-      console.log('Fetch records (revenue report)', {
+      console.log('Fetch records (custom fields)', {
         matterStatus: matterStatusEl.value || null,
         matters: state.selected,
         allMatters,
@@ -620,7 +620,7 @@ export function setupRevenueReportPage(): void {
       }
 
       try {
-        const result = await window.api.clio.fetchRevenueReportCustomFields({
+        const result = await window.api.clio.fetchCustomFieldsMatterData({
           allMatters,
           matterDisplayNumbers,
           customFieldIds,
@@ -655,12 +655,12 @@ export function setupRevenueReportPage(): void {
     if (lastFetchedMatters.length === 0 || lastFetchCustomFieldIds.length === 0) {
       return
     }
-    const { columns, records } = buildRevenueReportTablePayload(lastFetchedMatters, lastFetchCustomFieldIds)
+    const { columns, records } = buildCustomFieldsPageTablePayload(lastFetchedMatters, lastFetchCustomFieldIds)
     void window.api.openTableResults({
-      title: 'Revenue report',
+      title: 'Custom Fields',
       columns,
       records,
-      csvBaseName: 'revenue-report'
+      csvBaseName: 'custom-fields'
     })
   })
 }
@@ -752,7 +752,7 @@ function setupCustomFieldsSection(): void {
   applyScope()
 }
 
-function getCustomFieldsSelection(): RevenueReportCustomFieldsSelection {
+function getCustomFieldsSelection(): CustomFieldsPageSelection {
   const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
   const containerEl = document.getElementById('rr-custom-fields-checkboxes')
   if (!scopeEl || !containerEl) {
@@ -777,7 +777,7 @@ function getCustomFieldsSelection(): RevenueReportCustomFieldsSelection {
 }
 
 /** Resolves which Clio custom_field ids to request (all mapped ids vs checked subset). */
-function resolveCustomFieldClioIdsForRequest(sel: RevenueReportCustomFieldsSelection): number[] {
+function resolveCustomFieldClioIdsForRequest(sel: CustomFieldsPageSelection): number[] {
   if (sel.mode === 'all') {
     const ids = Object.values(MATTER_CUSTOM_FIELD_CLIO_IDS).filter(
       (id): id is number => typeof id === 'number' && Number.isFinite(id)
@@ -861,7 +861,7 @@ function findCustomFieldCellValue(cfvs: MatterCfValueRow[], fieldId: number): st
   return ''
 }
 
-function buildRevenueReportTablePayload(
+function buildCustomFieldsPageTablePayload(
   matters: unknown[],
   customFieldIds: number[]
 ): { columns: Array<{ key: string; label: string }>; records: Record<string, unknown>[] } {

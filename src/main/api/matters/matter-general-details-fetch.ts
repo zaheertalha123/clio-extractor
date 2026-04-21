@@ -1,4 +1,8 @@
 import type { ClioRequestFn } from '../shared/clio-request'
+import {
+  appendMatterListDateRangeQuery,
+  matterListOrderForStatus
+} from '../shared/matter-list-date-filters'
 
 /**
  * Maps UI / frontend keys to Clio GET /matters `fields` fragments (v4).
@@ -33,6 +37,13 @@ export interface MatterGeneralDetailsFetchInput {
   matterStatus?: string
   /** Requested general-detail keys (see MATTER_GENERAL_DETAIL_FIELD_MAP). Empty = all supported keys. */
   detailKeys: string[]
+  /**
+   * Date range filter (only when `allMatters` is true). Values are `YYYY-MM-DD` from the UI.
+   * - **Open** / **Pending** (and other non-closed): filters **`open_date`** (`open_date`, `open_date[]`).
+   * **Closed**: filters **`close_date`** so the range applies to when the matter was closed, not opened.
+   */
+  openDateAfter?: string
+  openDateBefore?: string
 }
 
 export interface MatterGeneralDetailsFetchResult {
@@ -64,11 +75,13 @@ function buildQuery(opts: {
   query?: string
   matterStatus?: string
   fields: string
+  openDateAfter?: string
+  openDateBefore?: string
 }): string {
   const p = new URLSearchParams()
   p.set('offset', String(opts.offset))
   p.set('limit', String(opts.limit))
-  p.set('order', 'open_date(desc)')
+  p.set('order', matterListOrderForStatus(opts.matterStatus))
   p.set('matter_access', 'full')
   if (opts.matterStatus) {
     p.set('status', opts.matterStatus)
@@ -77,6 +90,7 @@ function buildQuery(opts: {
   if (opts.query != null && opts.query !== '') {
     p.set('query', opts.query.trim())
   }
+  appendMatterListDateRangeQuery(p, opts.matterStatus, opts.openDateAfter, opts.openDateBefore)
   return p.toString()
 }
 
@@ -95,13 +109,22 @@ export async function fetchMatterGeneralDetails(
   const fields = buildFieldsParam(input.detailKeys ?? [])
   const limit = 50
   const matterStatus = input.matterStatus?.trim() || undefined
+  const openDateAfter = input.allMatters ? input.openDateAfter?.trim() || undefined : undefined
+  const openDateBefore = input.allMatters ? input.openDateBefore?.trim() || undefined : undefined
 
   if (input.allMatters) {
     const rows: unknown[] = []
     let offset = 0
     const maxPages = 2000
     for (let page = 0; page < maxPages; page++) {
-      const qs = buildQuery({ offset, limit, matterStatus, fields })
+      const qs = buildQuery({
+        offset,
+        limit,
+        matterStatus,
+        fields,
+        openDateAfter,
+        openDateBefore
+      })
       const res = await request(`/matters?${qs}`)
       if (res.error) {
         return { data: [], recordCount: 0, error: res.error }

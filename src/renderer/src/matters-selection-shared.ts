@@ -12,3 +12,15 @@ export const MATTER_STATUS_OPTIONS_HTML = [
   '<option value="Pending">Pending</option>',
   '<option value="Closed">Closed</option>'
 ].join('')
+
+/**
+ * Date-range filters (start/end) are enabled only when a specific matter status is chosen
+ * (not "All statuses" / empty) and "All Matters" (fetch-all) is checked.
+ */
+export function shouldEnableMatterDateRangeFilters(
+  matterStatusSelectValue: string,
+  allMattersChecked: boolean
+): boolean {
+  const isAnyStatus = matterStatusSelectValue.trim() === ''
+  return !isAnyStatus && allMattersChecked
+}

@@ -1,4 +1,5 @@
-import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
+import { setupMatterDateRangePicker } from './matter-date-range-ui'
+import { MATTER_STATUS_OPTIONS_HTML, shouldEnableMatterDateRangeFilters, type MatterPickerRow } from './matters-selection-shared'
 
 interface Elements {
   input: HTMLInputElement
@@ -185,36 +186,86 @@ export function getMattersPageHtml(): string {
           <div class="rr-selected-matters">
             <div class="rr-chips-stack" id="mat-matter-chips" aria-live="polite" aria-label="Selected matters"></div>
           </div>
-          <div class="rr-matter-columns">
-            <div class="filter-group rr-matter-status-wrap">
-              <label for="mat-matter-status">Matter Status</label>
-              <select id="mat-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
-            </div>
-            <div class="rr-matter-id-wrap">
-              <label class="rr-matter-label" for="mat-matter-input">Matter ID</label>
-              <div class="rr-field-wrap">
-                <div class="rr-input-row">
-                  <input
-                    type="text"
-                    class="rr-combo-input"
-                    id="mat-matter-input"
-                    placeholder="Type at least 4 characters to search…"
-                    autocomplete="off"
-                    spellcheck="false"
-                    aria-autocomplete="list"
-                    aria-controls="mat-matter-suggestions"
-                    aria-expanded="false"
-                  />
+          <div class="rr-matter-columns rr-matter-columns--split">
+            <div class="rr-matter-col rr-matter-col--left">
+              <div class="filter-group rr-matter-id-wrap">
+                <label class="rr-matter-label" for="mat-matter-input">Matter ID</label>
+                <div class="rr-field-wrap">
+                  <div class="rr-input-row">
+                    <input
+                      type="text"
+                      class="rr-combo-input"
+                      id="mat-matter-input"
+                      placeholder="Type at least 4 characters to search…"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-autocomplete="list"
+                      aria-controls="mat-matter-suggestions"
+                      aria-expanded="false"
+                    />
+                  </div>
+                  <ul class="rr-suggestions" id="mat-matter-suggestions" role="listbox" hidden></ul>
                 </div>
-                <ul class="rr-suggestions" id="mat-matter-suggestions" role="listbox" hidden></ul>
+              </div>
+              <div class="rr-all-matters-row">
+                <label class="rr-all-matters-label" for="mat-all-matters">
+                  <input type="checkbox" id="mat-all-matters" />
+                  <span>All Matters</span>
+                </label>
               </div>
             </div>
-          </div>
-          <div class="rr-all-matters-row">
-            <label class="rr-all-matters-label" for="mat-all-matters">
-              <input type="checkbox" id="mat-all-matters" />
-              <span>All Matters</span>
-            </label>
+            <div class="rr-matter-col rr-matter-col--right">
+              <div class="filter-group rr-matter-status-wrap">
+                <label for="mat-matter-status">Matter Status</label>
+                <select id="mat-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
+              </div>
+              <div class="filter-group rr-date-range-group">
+                <span class="rr-date-range-group-label">Date Range</span>
+                <div class="rr-date-range-field" id="mat-date-range-field">
+                  <span class="rr-date-range-display" id="mat-date-range-display" aria-live="polite">—</span>
+                  <button
+                    type="button"
+                    class="rr-date-range-picker-btn"
+                    id="mat-date-range-btn"
+                    aria-expanded="false"
+                    aria-controls="mat-date-range-popover"
+                    title="Choose date range"
+                    disabled
+                  >
+                    <span class="rr-date-range-picker-icon" aria-hidden="true">&#128197;</span>
+                    <span class="visually-hidden">Open date range picker</span>
+                  </button>
+                  <div
+                    class="rr-date-range-popover"
+                    id="mat-date-range-popover"
+                    hidden
+                    role="dialog"
+                    aria-label="Choose date range"
+                  >
+                    <div class="rr-date-range-popover-inner">
+                      <div class="rr-date-range-popover-dates">
+                        <label class="rr-date-range-popover-label">
+                          <span>Start</span>
+                          <input type="date" id="mat-date-start" class="rr-date-input rr-date-input--popover" disabled />
+                        </label>
+                        <label class="rr-date-range-popover-label">
+                          <span>End</span>
+                          <input type="date" id="mat-date-end" class="rr-date-input rr-date-input--popover" disabled />
+                        </label>
+                      </div>
+                      <div class="rr-date-range-popover-actions">
+                        <button type="button" class="button rr-date-range-action-btn" id="mat-date-range-apply" disabled>
+                          Apply
+                        </button>
+                        <button type="button" class="button secondary rr-date-range-action-btn" id="mat-date-range-clear" disabled>
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
           <div class="rr-status" id="mat-matter-input-status" aria-live="polite"></div>
@@ -484,6 +535,19 @@ export function setupMattersPage(): void {
     applyAllMattersMode(allMattersEl!.checked)
   })
 
+  setupMatterDateRangePicker({
+    fieldWrapId: 'mat-date-range-field',
+    displayId: 'mat-date-range-display',
+    openBtnId: 'mat-date-range-btn',
+    popoverId: 'mat-date-range-popover',
+    startInputId: 'mat-date-start',
+    endInputId: 'mat-date-end',
+    applyBtnId: 'mat-date-range-apply',
+    clearBtnId: 'mat-date-range-clear',
+    matterStatusSelectId: 'mat-matter-status',
+    allMattersCheckboxId: 'mat-all-matters'
+  })
+
   const matFetchBtn = document.getElementById('mat-fetch-records-btn') as HTMLButtonElement | null
   const matFetchStatusEl = document.getElementById('mat-fetch-status')
   const matOpenTableBtn = document.getElementById('mat-open-table-btn') as HTMLButtonElement | null
@@ -533,12 +597,20 @@ export function setupMattersPage(): void {
       const matterStatusTrimmed = matterStatusEl!.value.trim()
       const matterStatus = matterStatusTrimmed !== '' ? matterStatusTrimmed : undefined
 
+      const dateRangeActive = shouldEnableMatterDateRangeFilters(matterStatusTrimmed, allMatters)
+      const matDateStart = document.getElementById('mat-date-start') as HTMLInputElement | null
+      const matDateEnd = document.getElementById('mat-date-end') as HTMLInputElement | null
+      const openDateAfter = dateRangeActive && matDateStart?.value ? matDateStart.value : undefined
+      const openDateBefore = dateRangeActive && matDateEnd?.value ? matDateEnd.value : undefined
+
       try {
         const result = await window.api.clio.fetchMatterGeneralDetails({
           allMatters,
           matterDisplayNumbers: state.selected.map((m) => m.display_number),
           matterStatus,
-          detailKeys
+          detailKeys,
+          openDateAfter,
+          openDateBefore
         })
 
         console.log('Matters — general details', {

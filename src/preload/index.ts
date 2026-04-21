@@ -37,12 +37,16 @@ const api = {
       matterDisplayNumbers: string[]
       customFieldIds: number[]
       matterStatus?: string
+      openDateAfter?: string
+      openDateBefore?: string
     }) => ipcRenderer.invoke('clio:fetch-custom-fields-matter-data', payload),
     fetchMatterGeneralDetails: (payload: {
       allMatters: boolean
       matterDisplayNumbers: string[]
       matterStatus?: string
       detailKeys: string[]
+      openDateAfter?: string
+      openDateBefore?: string
     }) => ipcRenderer.invoke('clio:fetch-matter-general-details', payload)
   },
   results: {

@@ -12,9 +12,10 @@ import {
 } from './unpaid-bills'
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
 import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
+import { getMattersPageHtml, setupMattersPage } from './matters-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields'
+type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -36,6 +37,10 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
     title: 'Schema',
     description: 'Browse and explore Clio API schema tiles.'
   },
+  matters: {
+    title: 'Matters',
+    description: 'Choose matter filters for Custom Fields and other exports.'
+  },
   'firm-revenue': {
     title: 'Firm Revenue',
     description: 'Extract and analyze firm revenue data from Clio.'
@@ -55,7 +60,7 @@ function getHomePageHtml(): string {
     <div class="home-page">
       <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
-      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Custom Fields, Firm Revenue, or Unpaid Bills.</p>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Matters, Custom Fields, Firm Revenue, or Unpaid Bills.</p>
     </div>
   `
 }
@@ -63,6 +68,7 @@ function getHomePageHtml(): string {
 function renderPageContent(pageId: PageId): string {
   if (pageId === 'home') return getHomePageHtml()
   if (pageId === 'schema') return getSchemaPageHtml()
+  if (pageId === 'matters') return getMattersPageHtml()
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
   if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
@@ -310,6 +316,9 @@ async function loadPage(pageId: PageId): Promise<void> {
   if (pageId === 'unpaid-bills') {
     await loadUnpaidBillsOptions()
     setupUnpaidBillsListeners()
+  }
+  if (pageId === 'matters') {
+    setupMattersPage()
   }
   if (pageId === 'custom-fields') {
     setupCustomFieldsPage()

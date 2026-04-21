@@ -1,10 +1,5 @@
 import { resolvePicklistOptionLabel } from './custom-fields-picklist-maps'
-
-export type MatterPickerRow = {
-  id: number
-  display_number: string
-  description: string | null
-}
+import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
 
 export type CustomFieldsPageSelection =
   | { mode: 'all' }
@@ -16,7 +11,9 @@ export type CustomFieldsPageSelection =
       checkedFields: Array<{ name: string; clioFieldId: number | null }>
     }
 
-interface Elements {
+const CF_MATTER_DEBOUNCE_MS = 300
+
+interface CfMatterElements {
   input: HTMLInputElement
   suggestions: HTMLUListElement
   chips: HTMLDivElement
@@ -24,15 +21,13 @@ interface Elements {
   block: HTMLElement
 }
 
-interface UiState {
+interface CfMatterUiState {
   suggestions: MatterPickerRow[]
   activeIndex: number
   debounce: ReturnType<typeof setTimeout> | null
   loading: boolean
   selected: MatterPickerRow[]
 }
-
-const DEBOUNCE_MS = 300
 
 /**
  * Clio API `custom_fields` id by field `name` (Matter). Not shown in the UI; used for IPC / reporting.
@@ -206,14 +201,6 @@ function buildCustomFieldsPageFieldsOrdered(): RevenueCfFieldRow[] {
 
 const PLACEHOLDER_MATTER_CUSTOM_FIELDS: ReadonlyArray<RevenueCfFieldRow> = buildCustomFieldsPageFieldsOrdered()
 
-/** Same options as Firm Revenue → Matter Status */
-const MATTER_STATUS_OPTIONS_HTML = [
-  '<option value="">All statuses</option>',
-  '<option value="Open">Open</option>',
-  '<option value="Pending">Pending</option>',
-  '<option value="Closed">Closed</option>'
-].join('')
-
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -222,11 +209,114 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function cfMatterGetElements(): CfMatterElements | null {
+  const input = document.getElementById('rr-matter-input') as HTMLInputElement | null
+  const suggestions = document.getElementById('rr-matter-suggestions') as HTMLUListElement | null
+  const chips = document.getElementById('rr-matter-chips') as HTMLDivElement | null
+  const status = document.getElementById('rr-matter-input-status')
+  const block = document.querySelector('[data-rr-matter-field]') as HTMLElement | null
+  if (!input || !suggestions || !chips || !status || !block) return null
+  return { input, suggestions, chips, status, block }
+}
+
+function cfMatterSetStatus(el: HTMLElement, message: string, kind: 'idle' | 'loading' | 'error'): void {
+  el.textContent = message
+  el.className =
+    'rr-status' +
+    (kind === 'error' ? ' rr-status--error' : kind === 'loading' ? ' rr-status--loading' : '')
+}
+
+function cfMatterHideSuggestions(els: CfMatterElements, state: CfMatterUiState): void {
+  els.suggestions.hidden = true
+  els.suggestions.innerHTML = ''
+  els.input.setAttribute('aria-expanded', 'false')
+  state.suggestions = []
+  state.activeIndex = -1
+}
+
+function cfMatterRenderSuggestions(
+  els: CfMatterElements,
+  state: CfMatterUiState,
+  rows: MatterPickerRow[],
+  onPick: (row: MatterPickerRow) => void
+): void {
+  state.suggestions = rows
+  state.activeIndex = rows.length > 0 ? 0 : -1
+  els.suggestions.innerHTML = ''
+  if (rows.length === 0) {
+    els.suggestions.hidden = true
+    els.input.setAttribute('aria-expanded', 'false')
+    return
+  }
+  rows.forEach((row, i) => {
+    const li = document.createElement('li')
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'rr-suggestion' + (i === 0 ? ' rr-suggestion--active' : '')
+    btn.setAttribute('role', 'option')
+    const name = row.description?.trim() || '(No name)'
+    btn.innerHTML = `<span class="rr-suggestion-id">${escapeHtml(row.display_number)}</span><span class="rr-suggestion-name">${escapeHtml(name)}</span>`
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      onPick(row)
+    })
+    li.appendChild(btn)
+    els.suggestions.appendChild(li)
+  })
+  els.suggestions.hidden = false
+  els.input.setAttribute('aria-expanded', 'true')
+}
+
+function cfMatterHighlightActive(els: CfMatterElements, state: CfMatterUiState): void {
+  const buttons = els.suggestions.querySelectorAll('.rr-suggestion')
+  buttons.forEach((b, i) => {
+    b.classList.toggle('rr-suggestion--active', i === state.activeIndex)
+  })
+}
+
+function cfMatterRenderChipRow(els: CfMatterElements, state: CfMatterUiState): void {
+  els.chips.innerHTML = ''
+  for (const row of state.selected) {
+    const wrap = document.createElement('span')
+    wrap.className = 'rr-chip'
+    wrap.setAttribute('data-matter-id', String(row.id))
+
+    const idSpan = document.createElement('span')
+    idSpan.className = 'rr-chip-id'
+    idSpan.textContent = row.display_number
+
+    const name = row.description?.trim() || '(No name)'
+    const nameSpan = document.createElement('span')
+    nameSpan.className = 'rr-chip-name'
+    nameSpan.title = name
+    nameSpan.textContent = name
+
+    const removeBtn = document.createElement('button')
+    removeBtn.type = 'button'
+    removeBtn.className = 'rr-chip-remove'
+    removeBtn.setAttribute('aria-label', `Remove matter ${row.display_number}`)
+    removeBtn.innerHTML = '&times;'
+    const matterId = row.id
+    removeBtn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      state.selected = state.selected.filter((m) => m.id !== matterId)
+      cfMatterRenderChipRow(els, state)
+      cfMatterSetStatus(els.status, '', 'idle')
+    })
+
+    wrap.appendChild(idSpan)
+    wrap.appendChild(nameSpan)
+    wrap.appendChild(removeBtn)
+    els.chips.appendChild(wrap)
+  }
+}
+
 export function getCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
       <h1 class="page-title">Custom Fields</h1>
-      <p class="page-description">Select matters and Matter custom fields, then fetch records.</p>
+      <p class="page-description">Choose matters below, then select custom fields and fetch. This page’s matter list is separate from the <strong>Matters</strong> page.</p>
     </div>
     <div class="custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="rr-section-matter-title">
@@ -309,119 +399,14 @@ export function getCustomFieldsPageHtml(): string {
   `
 }
 
-function getElements(): Elements | null {
-  const input = document.getElementById('rr-matter-input') as HTMLInputElement | null
-  const suggestions = document.getElementById('rr-matter-suggestions') as HTMLUListElement | null
-  const chips = document.getElementById('rr-matter-chips') as HTMLDivElement | null
-  const status = document.getElementById('rr-matter-input-status')
-  const block = document.querySelector('[data-rr-matter-field]') as HTMLElement | null
-  if (!input || !suggestions || !chips || !status || !block) return null
-  return { input, suggestions, chips, status, block }
-}
-
-function setStatus(el: HTMLElement, message: string, kind: 'idle' | 'loading' | 'error'): void {
-  el.textContent = message
-  el.className =
-    'rr-status' +
-    (kind === 'error' ? ' rr-status--error' : kind === 'loading' ? ' rr-status--loading' : '')
-}
-
-function hideSuggestions(els: Elements, state: UiState): void {
-  els.suggestions.hidden = true
-  els.suggestions.innerHTML = ''
-  els.input.setAttribute('aria-expanded', 'false')
-  state.suggestions = []
-  state.activeIndex = -1
-}
-
-
-function renderSuggestions(
-  els: Elements,
-  state: UiState,
-  rows: MatterPickerRow[],
-  onPick: (row: MatterPickerRow) => void
-): void {
-  state.suggestions = rows
-  state.activeIndex = rows.length > 0 ? 0 : -1
-  els.suggestions.innerHTML = ''
-  if (rows.length === 0) {
-    els.suggestions.hidden = true
-    els.input.setAttribute('aria-expanded', 'false')
-    return
-  }
-  rows.forEach((row, i) => {
-    const li = document.createElement('li')
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'rr-suggestion' + (i === 0 ? ' rr-suggestion--active' : '')
-    btn.setAttribute('role', 'option')
-    const name = row.description?.trim() || '(No name)'
-    btn.innerHTML = `<span class="rr-suggestion-id">${escapeHtml(row.display_number)}</span><span class="rr-suggestion-name">${escapeHtml(name)}</span>`
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      onPick(row)
-    })
-    li.appendChild(btn)
-    els.suggestions.appendChild(li)
-  })
-  els.suggestions.hidden = false
-  els.input.setAttribute('aria-expanded', 'true')
-}
-
-function highlightActive(els: Elements, state: UiState): void {
-  const buttons = els.suggestions.querySelectorAll('.rr-suggestion')
-  buttons.forEach((b, i) => {
-    b.classList.toggle('rr-suggestion--active', i === state.activeIndex)
-  })
-}
-
-function renderChipRow(els: Elements, state: UiState): void {
-  els.chips.innerHTML = ''
-  for (const row of state.selected) {
-    const wrap = document.createElement('span')
-    wrap.className = 'rr-chip'
-    wrap.setAttribute('data-matter-id', String(row.id))
-
-    const idSpan = document.createElement('span')
-    idSpan.className = 'rr-chip-id'
-    idSpan.textContent = row.display_number
-
-    const name = row.description?.trim() || '(No name)'
-    const nameSpan = document.createElement('span')
-    nameSpan.className = 'rr-chip-name'
-    nameSpan.title = name
-    nameSpan.textContent = name
-
-    const removeBtn = document.createElement('button')
-    removeBtn.type = 'button'
-    removeBtn.className = 'rr-chip-remove'
-    removeBtn.setAttribute('aria-label', `Remove matter ${row.display_number}`)
-    removeBtn.innerHTML = '&times;'
-    const matterId = row.id
-    removeBtn.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      state.selected = state.selected.filter((m) => m.id !== matterId)
-      renderChipRow(els, state)
-      setStatus(els.status, '', 'idle')
-    })
-
-    wrap.appendChild(idSpan)
-    wrap.appendChild(nameSpan)
-    wrap.appendChild(removeBtn)
-    els.chips.appendChild(wrap)
-  }
-}
-
 export function setupCustomFieldsPage(): void {
-  const els = getElements()
-  if (!els) return
+  setupCustomFieldsSection()
 
+  const els = cfMatterGetElements()
   const allMattersEl = document.getElementById('rr-all-matters') as HTMLInputElement | null
   const matterStatusEl = document.getElementById('rr-matter-status') as HTMLSelectElement | null
-  if (!allMattersEl || !matterStatusEl) return
 
-  const state: UiState = {
+  const cfMatterState: CfMatterUiState = {
     suggestions: [],
     activeIndex: -1,
     debounce: null,
@@ -429,61 +414,62 @@ export function setupCustomFieldsPage(): void {
     selected: []
   }
 
+  if (els && allMattersEl && matterStatusEl) {
   const pickMatter = (row: MatterPickerRow): void => {
-    if (state.selected.some((m) => m.id === row.id)) {
-      setStatus(els.status, 'This matter is already added.', 'error')
+    if (cfMatterState.selected.some((m) => m.id === row.id)) {
+      cfMatterSetStatus(els.status, 'This matter is already added.', 'error')
       return
     }
-    setStatus(els.status, '', 'idle')
-    state.selected.push(row)
-    renderChipRow(els, state)
+    cfMatterSetStatus(els.status, '', 'idle')
+    cfMatterState.selected.push(row)
+    cfMatterRenderChipRow(els, cfMatterState)
     els.input.value = ''
-    hideSuggestions(els, state)
+    cfMatterHideSuggestions(els, cfMatterState)
   }
 
   const runSearch = async (raw: string): Promise<void> => {
     const q = raw.trim()
     if (q.length < 4) {
-      hideSuggestions(els, state)
-      setStatus(els.status, '', 'idle')
+      cfMatterHideSuggestions(els, cfMatterState)
+      cfMatterSetStatus(els.status, '', 'idle')
       return
     }
-    state.loading = true
-    setStatus(els.status, 'Searching…', 'loading')
+    cfMatterState.loading = true
+    cfMatterSetStatus(els.status, 'Searching…', 'loading')
     try {
       const { data, error } = await window.api.clio.getMattersByDisplayId(q)
       if (error) {
-        setStatus(els.status, error, 'error')
-        hideSuggestions(els, state)
+        cfMatterSetStatus(els.status, error, 'error')
+        cfMatterHideSuggestions(els, cfMatterState)
         return
       }
-      setStatus(els.status, data.length === 0 ? 'No matters found.' : '', 'idle')
-      renderSuggestions(els, state, data, pickMatter)
+      cfMatterSetStatus(els.status, data.length === 0 ? 'No matters found.' : '', 'idle')
+      cfMatterRenderSuggestions(els, cfMatterState, data, pickMatter)
     } catch (e) {
-      setStatus(els.status, e instanceof Error ? e.message : 'Search failed', 'error')
-      hideSuggestions(els, state)
+      cfMatterSetStatus(els.status, e instanceof Error ? e.message : 'Search failed', 'error')
+      cfMatterHideSuggestions(els, cfMatterState)
     } finally {
-      state.loading = false
+      cfMatterState.loading = false
     }
   }
 
   const scheduleSearch = (): void => {
-    if (state.debounce) clearTimeout(state.debounce)
+    if (cfMatterState.debounce) clearTimeout(cfMatterState.debounce)
     const v = els.input.value
     if (v.trim().length < 4) {
-      hideSuggestions(els, state)
-      setStatus(els.status, '', 'idle')
+      cfMatterHideSuggestions(els, cfMatterState)
+      cfMatterSetStatus(els.status, '', 'idle')
       return
     }
-    state.debounce = setTimeout(() => {
+    cfMatterState.debounce = setTimeout(() => {
       void runSearch(v)
-    }, DEBOUNCE_MS)
+    }, CF_MATTER_DEBOUNCE_MS)
   }
 
   const selectFromKeyboard = (): void => {
-    const rows = state.suggestions
+    const rows = cfMatterState.suggestions
     if (rows.length === 0) return
-    let idx = state.activeIndex >= 0 ? state.activeIndex : 0
+    let idx = cfMatterState.activeIndex >= 0 ? cfMatterState.activeIndex : 0
     if (idx < 0 || idx >= rows.length) idx = 0
     const exact = els.input.value.trim()
     const byExact = rows.find((r) => String(r.display_number) === exact)
@@ -495,64 +481,66 @@ export function setupCustomFieldsPage(): void {
   })
 
   els.input.addEventListener('keydown', (e) => {
-    if (!els.suggestions.hidden && state.suggestions.length > 0) {
+    if (!els.suggestions.hidden && cfMatterState.suggestions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        state.activeIndex = Math.min(state.activeIndex + 1, state.suggestions.length - 1)
-        highlightActive(els, state)
+        cfMatterState.activeIndex = Math.min(
+          cfMatterState.activeIndex + 1,
+          cfMatterState.suggestions.length - 1
+        )
+        cfMatterHighlightActive(els, cfMatterState)
         return
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        state.activeIndex = Math.max(state.activeIndex - 1, 0)
-        highlightActive(els, state)
+        cfMatterState.activeIndex = Math.max(cfMatterState.activeIndex - 1, 0)
+        cfMatterHighlightActive(els, cfMatterState)
         return
       }
     }
     if (e.key === 'Enter') {
       e.preventDefault()
       if (els.input.value.trim().length < 4) return
-      if (state.suggestions.length > 0) {
+      if (cfMatterState.suggestions.length > 0) {
         selectFromKeyboard()
       } else {
         void runSearch(els.input.value).then(() => {
-          if (state.suggestions.length > 0) selectFromKeyboard()
+          if (cfMatterState.suggestions.length > 0) selectFromKeyboard()
         })
       }
       return
     }
     if (e.key === 'Escape') {
-      hideSuggestions(els, state)
+      cfMatterHideSuggestions(els, cfMatterState)
     }
   })
 
   els.input.addEventListener('blur', () => {
     setTimeout(() => {
       if (els.block.contains(document.activeElement)) return
-      hideSuggestions(els, state)
+      cfMatterHideSuggestions(els, cfMatterState)
     }, 150)
   })
 
   const applyAllMattersMode = (allMatters: boolean): void => {
     els.input.disabled = allMatters
     if (allMatters) {
-      if (state.debounce) {
-        clearTimeout(state.debounce)
-        state.debounce = null
+      if (cfMatterState.debounce) {
+        clearTimeout(cfMatterState.debounce)
+        cfMatterState.debounce = null
       }
       els.input.value = ''
-      hideSuggestions(els, state)
-      setStatus(els.status, '', 'idle')
-      state.selected = []
-      renderChipRow(els, state)
+      cfMatterHideSuggestions(els, cfMatterState)
+      cfMatterSetStatus(els.status, '', 'idle')
+      cfMatterState.selected = []
+      cfMatterRenderChipRow(els, cfMatterState)
     }
   }
 
   allMattersEl.addEventListener('change', () => {
     applyAllMattersMode(allMattersEl.checked)
   })
-
-  setupCustomFieldsSection()
+  }
 
   const fetchRecordsBtn = document.getElementById('rr-fetch-records-btn') as HTMLButtonElement | null
   const compileReportBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null
@@ -573,14 +561,17 @@ export function setupCustomFieldsPage(): void {
 
   fetchRecordsBtn?.addEventListener('click', () => {
     void (async () => {
+      const allMattersElFetch = document.getElementById('rr-all-matters') as HTMLInputElement | null
+      const matterStatusElFetch = document.getElementById('rr-matter-status') as HTMLSelectElement | null
+
+      const allMatters = allMattersElFetch?.checked ?? false
+      const matterDisplayNumbers = cfMatterState.selected.map((m) => m.display_number)
       const cfSel = getCustomFieldsSelection()
       const customFieldIds = resolveCustomFieldClioIdsForRequest(cfSel)
-      const allMatters = allMattersEl.checked
-      const matterDisplayNumbers = state.selected.map((m) => m.display_number)
 
       console.log('Fetch records (custom fields)', {
-        matterStatus: matterStatusEl.value || null,
-        matters: state.selected,
+        matterStatus: matterStatusElFetch?.value || null,
+        matters: cfMatterState.selected,
         allMatters,
         customFields: cfSel,
         customFieldIds
@@ -611,7 +602,7 @@ export function setupCustomFieldsPage(): void {
         return
       }
 
-      const matterStatusRaw = matterStatusEl.value?.trim()
+      const matterStatusRaw = (matterStatusElFetch?.value ?? '').trim()
       const matterStatus = matterStatusRaw !== '' ? matterStatusRaw : undefined
 
       fetchRecordsBtn!.disabled = true

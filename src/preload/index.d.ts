@@ -41,6 +41,12 @@ interface ClioAPI {
     customFieldIds: number[]
     matterStatus?: string
   }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
+  fetchMatterGeneralDetails: (payload: {
+    allMatters: boolean
+    matterDisplayNumbers: string[]
+    matterStatus?: string
+    detailKeys: string[]
+  }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
 }
 
 interface ResultsAPI {

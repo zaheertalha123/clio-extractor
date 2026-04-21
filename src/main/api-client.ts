@@ -6,6 +6,11 @@ import {
   type CustomFieldsMatterFetchResult,
   type CustomFieldsMatterFetchInput
 } from './api/custom-fields/custom-fields-matter-fetch'
+import {
+  fetchMatterGeneralDetails,
+  type MatterGeneralDetailsFetchResult,
+  type MatterGeneralDetailsFetchInput
+} from './api/matters/matter-general-details-fetch'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -124,6 +129,16 @@ class ClioAPIClient {
     params: CustomFieldsMatterFetchInput
   ): Promise<CustomFieldsMatterFetchResult> {
     return fetchCustomFieldsMatterData(
+      (endpoint, options) => this.makeRequest(endpoint, options),
+      params
+    )
+  }
+
+  /** Matters page: fetch matters with only requested general-detail fields. */
+  async fetchMatterGeneralDetails(
+    params: MatterGeneralDetailsFetchInput
+  ): Promise<MatterGeneralDetailsFetchResult> {
+    return fetchMatterGeneralDetails(
       (endpoint, options) => this.makeRequest(endpoint, options),
       params
     )

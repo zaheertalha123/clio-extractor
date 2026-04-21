@@ -377,6 +377,31 @@ app.whenReady().then(() => {
     }
   )
 
+  ipcMain.handle(
+    'clio:fetch-matter-general-details',
+    async (
+      _event,
+      payload: {
+        allMatters: boolean
+        matterDisplayNumbers: string[]
+        matterStatus?: string
+        detailKeys: string[]
+      }
+    ) => {
+      if (!apiClient) {
+        return { data: [], recordCount: 0, error: 'API not initialized' }
+      }
+      return await apiClient.fetchMatterGeneralDetails({
+        allMatters: Boolean(payload?.allMatters),
+        matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
+        matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
+          ? payload.matterStatus.trim()
+          : undefined,
+        detailKeys: Array.isArray(payload?.detailKeys) ? payload.detailKeys : []
+      })
+    }
+  )
+
   ipcMain.handle('dialog:clio-connection-failed', async (event): Promise<'retry' | 'signout'> => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
     if (!win || win.isDestroyed()) {

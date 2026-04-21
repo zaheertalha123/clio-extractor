@@ -358,3 +358,23 @@
 .rr-status--loading {
   color: var(--clio-text-muted, #5c6570);
 }
+
+/* Custom Fields — read-only summary of shared matter selection (Matters page) */
+.cf-matter-summary-body {
+  font-size: 14px;
+  color: var(--clio-text);
+}
+.cf-matter-summary-body .cf-summary-line {
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+.cf-matter-summary-body .cf-summary-line:last-child {
+  margin-bottom: 0;
+}
+.cf-matter-summary-body .rr-chips-stack {
+  margin-top: 4px;
+}
+.cf-matter-summary--warn {
+  color: #b00020;
+  font-size: 13px;
+}

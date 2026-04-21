@@ -1,3 +1,15 @@
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Custom Fields page — selected matters above Matter Status + Matter ID row */
 .rr-field-wrap {
   position: relative;
@@ -13,20 +25,130 @@
   margin-top: 12px;
 }
 
-.rr-matter-date-range-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px 24px;
-  margin-top: 12px;
+.rr-matter-columns--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 28px;
+  align-items: start;
 }
 
-.rr-matter-date-field label {
+@media (max-width: 720px) {
+  .rr-matter-columns--split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rr-matter-col--left,
+.rr-matter-col--right {
+  min-width: 0;
+}
+
+.rr-matter-col--right .rr-matter-status-wrap {
+  margin-bottom: 0;
+}
+
+.rr-date-range-group {
+  margin-top: 16px;
+}
+
+.rr-date-range-group-label {
   display: block;
   margin-bottom: 6px;
   font-size: 14px;
   font-weight: 500;
   color: var(--clio-text);
+}
+
+.rr-date-range-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  min-height: 42px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: var(--clio-white);
+  box-sizing: border-box;
+}
+
+.rr-date-range-field--disabled {
+  opacity: 0.55;
+  background: var(--clio-bg-muted, rgba(0, 0, 0, 0.04));
+}
+
+.rr-date-range-display {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--clio-text);
+  line-height: 1.35;
+}
+
+.rr-date-range-picker-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: var(--clio-white);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.rr-date-range-picker-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.rr-date-range-picker-btn:not(:disabled):hover {
+  border-color: var(--clio-blue, #2563eb);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.rr-date-range-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 272px;
+  border: 1px solid var(--clio-gray);
+  border-radius: 8px;
+  background: var(--clio-white);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.rr-date-range-popover-inner {
+  padding: 14px;
+}
+
+.rr-date-range-popover-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.rr-date-range-popover-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--clio-text);
+}
+
+.rr-date-range-popover-label > span:first-child {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--clio-text-muted, #5c6570);
 }
 
 .rr-date-input {
@@ -41,6 +163,11 @@
   box-sizing: border-box;
 }
 
+.rr-date-input--popover {
+  min-height: 40px;
+  width: 100%;
+}
+
 .rr-date-input:focus {
   outline: none;
   border-color: var(--clio-blue, #2563eb);
@@ -51,6 +178,19 @@
   opacity: 0.55;
   cursor: not-allowed;
   background: var(--clio-bg-muted, rgba(0, 0, 0, 0.04));
+}
+
+.rr-date-range-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.rr-date-range-action-btn {
+  line-height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
 }
 
 .rr-all-matters-label {
@@ -70,7 +210,7 @@
 
 .custom-fields-page-form {
   margin-top: 24px;
-  max-width: 640px;
+  max-width: 720px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -179,25 +319,30 @@
   color: var(--clio-text-muted, #5c6570);
 }
 
-.rr-matter-columns {
+.rr-matter-columns:not(.rr-matter-columns--split) {
   display: flex;
   flex-wrap: wrap;
   gap: 16px 24px;
   align-items: flex-start;
 }
 
-.rr-matter-status-wrap {
+.rr-matter-columns:not(.rr-matter-columns--split) .rr-matter-status-wrap {
   flex: 0 1 200px;
   min-width: 160px;
 }
 
 .rr-matter-status-wrap select {
   min-height: 42px;
+  width: 100%;
 }
 
-.rr-matter-id-wrap {
+.rr-matter-columns:not(.rr-matter-columns--split) .rr-matter-id-wrap {
   flex: 1 1 280px;
   min-width: 0;
+}
+
+.rr-matter-columns--split .rr-matter-id-wrap {
+  width: 100%;
 }
 
 .custom-fields-page-form .rr-compile-actions {
@@ -259,6 +404,21 @@
   display: flex;
   align-items: center;
   padding: 0 10px;
+}
+
+/* forms.css `.filter-group input` adds border + focus ring; row already provides one outline */
+.filter-group.rr-matter-id-wrap input.rr-combo-input {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 10px 0;
+  background: transparent;
+}
+
+.filter-group.rr-matter-id-wrap input.rr-combo-input:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
 }
 
 .rr-input-row:focus-within {

@@ -1,9 +1,6 @@
 import { resolvePicklistOptionLabel } from './custom-fields-picklist-maps'
-import {
-  MATTER_STATUS_OPTIONS_HTML,
-  shouldEnableMatterDateRangeFilters,
-  type MatterPickerRow
-} from './matters-selection-shared'
+import { setupMatterDateRangePicker } from './matter-date-range-ui'
+import { MATTER_STATUS_OPTIONS_HTML, shouldEnableMatterDateRangeFilters, type MatterPickerRow } from './matters-selection-shared'
 
 export type CustomFieldsPageSelection =
   | { mode: 'all' }
@@ -329,45 +326,85 @@ export function getCustomFieldsPageHtml(): string {
           <div class="rr-selected-matters">
             <div class="rr-chips-stack" id="rr-matter-chips" aria-live="polite" aria-label="Selected matters"></div>
           </div>
-          <div class="rr-matter-columns">
-            <div class="filter-group rr-matter-status-wrap">
-              <label for="rr-matter-status">Matter Status</label>
-              <select id="rr-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
-            </div>
-            <div class="rr-matter-id-wrap">
-              <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
-              <div class="rr-field-wrap">
-                <div class="rr-input-row">
-                  <input
-                    type="text"
-                    class="rr-combo-input"
-                    id="rr-matter-input"
-                    placeholder="Type at least 4 characters to search…"
-                    autocomplete="off"
-                    spellcheck="false"
-                    aria-autocomplete="list"
-                    aria-controls="rr-matter-suggestions"
-                    aria-expanded="false"
-                  />
+          <div class="rr-matter-columns rr-matter-columns--split">
+            <div class="rr-matter-col rr-matter-col--left">
+              <div class="filter-group rr-matter-id-wrap">
+                <label class="rr-matter-label" for="rr-matter-input">Matter ID</label>
+                <div class="rr-field-wrap">
+                  <div class="rr-input-row">
+                    <input
+                      type="text"
+                      class="rr-combo-input"
+                      id="rr-matter-input"
+                      placeholder="Type at least 4 characters to search…"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-autocomplete="list"
+                      aria-controls="rr-matter-suggestions"
+                      aria-expanded="false"
+                    />
+                  </div>
+                  <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
                 </div>
-                <ul class="rr-suggestions" id="rr-matter-suggestions" role="listbox" hidden></ul>
+              </div>
+              <div class="rr-all-matters-row">
+                <label class="rr-all-matters-label" for="rr-all-matters">
+                  <input type="checkbox" id="rr-all-matters" />
+                  <span>All Matters</span>
+                </label>
               </div>
             </div>
-          </div>
-          <div class="rr-all-matters-row">
-            <label class="rr-all-matters-label" for="rr-all-matters">
-              <input type="checkbox" id="rr-all-matters" />
-              <span>All Matters</span>
-            </label>
-          </div>
-          <div class="rr-matter-date-range-row" aria-label="Date range (optional)">
-            <div class="filter-group rr-matter-date-field">
-              <label for="rr-date-start">Start date</label>
-              <input type="date" id="rr-date-start" class="rr-date-input" disabled />
-            </div>
-            <div class="filter-group rr-matter-date-field">
-              <label for="rr-date-end">End date</label>
-              <input type="date" id="rr-date-end" class="rr-date-input" disabled />
+            <div class="rr-matter-col rr-matter-col--right">
+              <div class="filter-group rr-matter-status-wrap">
+                <label for="rr-matter-status">Matter Status</label>
+                <select id="rr-matter-status">${MATTER_STATUS_OPTIONS_HTML}</select>
+              </div>
+              <div class="filter-group rr-date-range-group">
+                <span class="rr-date-range-group-label">Date Range</span>
+                <div class="rr-date-range-field" id="rr-date-range-field">
+                  <span class="rr-date-range-display" id="rr-date-range-display" aria-live="polite">—</span>
+                  <button
+                    type="button"
+                    class="rr-date-range-picker-btn"
+                    id="rr-date-range-btn"
+                    aria-expanded="false"
+                    aria-controls="rr-date-range-popover"
+                    title="Choose date range"
+                    disabled
+                  >
+                    <span class="rr-date-range-picker-icon" aria-hidden="true">&#128197;</span>
+                    <span class="visually-hidden">Open date range picker</span>
+                  </button>
+                  <div
+                    class="rr-date-range-popover"
+                    id="rr-date-range-popover"
+                    hidden
+                    role="dialog"
+                    aria-label="Choose date range"
+                  >
+                    <div class="rr-date-range-popover-inner">
+                      <div class="rr-date-range-popover-dates">
+                        <label class="rr-date-range-popover-label">
+                          <span>Start</span>
+                          <input type="date" id="rr-date-start" class="rr-date-input rr-date-input--popover" disabled />
+                        </label>
+                        <label class="rr-date-range-popover-label">
+                          <span>End</span>
+                          <input type="date" id="rr-date-end" class="rr-date-input rr-date-input--popover" disabled />
+                        </label>
+                      </div>
+                      <div class="rr-date-range-popover-actions">
+                        <button type="button" class="button rr-date-range-action-btn" id="rr-date-range-apply" disabled>
+                          Apply
+                        </button>
+                        <button type="button" class="button secondary rr-date-range-action-btn" id="rr-date-range-clear" disabled>
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
@@ -426,20 +463,6 @@ export function setupCustomFieldsPage(): void {
     debounce: null,
     loading: false,
     selected: []
-  }
-
-  const dateStartEl = document.getElementById('rr-date-start') as HTMLInputElement | null
-  const dateEndEl = document.getElementById('rr-date-end') as HTMLInputElement | null
-
-  const syncMatterDateRangeFields = (): void => {
-    if (!dateStartEl || !dateEndEl || !matterStatusEl || !allMattersEl) return
-    const enabled = shouldEnableMatterDateRangeFilters(matterStatusEl.value, allMattersEl.checked)
-    dateStartEl.disabled = !enabled
-    dateEndEl.disabled = !enabled
-    if (!enabled) {
-      dateStartEl.value = ''
-      dateEndEl.value = ''
-    }
   }
 
   if (els && allMattersEl && matterStatusEl) {
@@ -567,12 +590,21 @@ export function setupCustomFieldsPage(): void {
 
   allMattersEl.addEventListener('change', () => {
     applyAllMattersMode(allMattersEl.checked)
-    syncMatterDateRangeFields()
   })
   }
 
-  matterStatusEl?.addEventListener('change', syncMatterDateRangeFields)
-  syncMatterDateRangeFields()
+  setupMatterDateRangePicker({
+    fieldWrapId: 'rr-date-range-field',
+    displayId: 'rr-date-range-display',
+    openBtnId: 'rr-date-range-btn',
+    popoverId: 'rr-date-range-popover',
+    startInputId: 'rr-date-start',
+    endInputId: 'rr-date-end',
+    applyBtnId: 'rr-date-range-apply',
+    clearBtnId: 'rr-date-range-clear',
+    matterStatusSelectId: 'rr-matter-status',
+    allMattersCheckboxId: 'rr-all-matters'
+  })
 
   const fetchRecordsBtn = document.getElementById('rr-fetch-records-btn') as HTMLButtonElement | null
   const compileReportBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null

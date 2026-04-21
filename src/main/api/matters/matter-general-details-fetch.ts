@@ -33,6 +33,13 @@ export interface MatterGeneralDetailsFetchInput {
   matterStatus?: string
   /** Requested general-detail keys (see MATTER_GENERAL_DETAIL_FIELD_MAP). Empty = all supported keys. */
   detailKeys: string[]
+  /**
+   * Date range filter (only when `allMatters` is true). Values are `YYYY-MM-DD` from the UI.
+   * - **Open** / **Pending** (and other non-closed): filters **`open_date`** (`open_date`, `open_date[]`).
+   * **Closed**: filters **`close_date`** so the range applies to when the matter was closed, not opened.
+   */
+  openDateAfter?: string
+  openDateBefore?: string
 }
 
 export interface MatterGeneralDetailsFetchResult {
@@ -58,17 +65,68 @@ function buildFieldsParam(detailKeys: string[]): string {
   return parts.join(',')
 }
 
+/** `YYYY-MM-DD` → start of that day in local time, as ISO string for Clio. */
+function startOfLocalDayIso(dateStr: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) return null
+  const local = new Date(y, mo - 1, d)
+  if (local.getFullYear() !== y || local.getMonth() !== mo - 1 || local.getDate() !== d) return null
+  return local.toISOString()
+}
+
+/** Exclusive upper bound: start of the day after `dateStr` in local time (so `open_date <` includes all of end day). */
+function startOfNextLocalDayIso(dateStr: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) return null
+  const next = new Date(y, mo - 1, d + 1)
+  return next.toISOString()
+}
+
+function listDateFilterField(matterStatus?: string): 'open_date' | 'close_date' {
+  return matterStatus === 'Closed' ? 'close_date' : 'open_date'
+}
+
+function appendMatterListDateFilters(
+  p: URLSearchParams,
+  field: 'open_date' | 'close_date',
+  dateAfter?: string,
+  dateBefore?: string
+): void {
+  const afterIso = dateAfter?.trim() ? startOfLocalDayIso(dateAfter) : null
+  const beforeExclusiveIso = dateBefore?.trim() ? startOfNextLocalDayIso(dateBefore) : null
+
+  if (afterIso && beforeExclusiveIso) {
+    p.append(`${field}[]`, `>${afterIso}`)
+    p.append(`${field}[]`, `<${beforeExclusiveIso}`)
+  } else if (afterIso) {
+    p.append(field, `>${afterIso}`)
+  } else if (beforeExclusiveIso) {
+    p.append(field, `<${beforeExclusiveIso}`)
+  }
+}
+
 function buildQuery(opts: {
   offset: number
   limit: number
   query?: string
   matterStatus?: string
   fields: string
+  openDateAfter?: string
+  openDateBefore?: string
 }): string {
   const p = new URLSearchParams()
   p.set('offset', String(opts.offset))
   p.set('limit', String(opts.limit))
-  p.set('order', 'open_date(desc)')
+  const dateField = listDateFilterField(opts.matterStatus)
+  p.set('order', dateField === 'close_date' ? 'close_date(desc)' : 'open_date(desc)')
   p.set('matter_access', 'full')
   if (opts.matterStatus) {
     p.set('status', opts.matterStatus)
@@ -77,6 +135,7 @@ function buildQuery(opts: {
   if (opts.query != null && opts.query !== '') {
     p.set('query', opts.query.trim())
   }
+  appendMatterListDateFilters(p, dateField, opts.openDateAfter, opts.openDateBefore)
   return p.toString()
 }
 
@@ -95,13 +154,22 @@ export async function fetchMatterGeneralDetails(
   const fields = buildFieldsParam(input.detailKeys ?? [])
   const limit = 50
   const matterStatus = input.matterStatus?.trim() || undefined
+  const openDateAfter = input.allMatters ? input.openDateAfter?.trim() || undefined : undefined
+  const openDateBefore = input.allMatters ? input.openDateBefore?.trim() || undefined : undefined
 
   if (input.allMatters) {
     const rows: unknown[] = []
     let offset = 0
     const maxPages = 2000
     for (let page = 0; page < maxPages; page++) {
-      const qs = buildQuery({ offset, limit, matterStatus, fields })
+      const qs = buildQuery({
+        offset,
+        limit,
+        matterStatus,
+        fields,
+        openDateAfter,
+        openDateBefore
+      })
       const res = await request(`/matters?${qs}`)
       if (res.error) {
         return { data: [], recordCount: 0, error: res.error }

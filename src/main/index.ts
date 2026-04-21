@@ -386,18 +386,30 @@ app.whenReady().then(() => {
         matterDisplayNumbers: string[]
         matterStatus?: string
         detailKeys: string[]
+        openDateAfter?: string
+        openDateBefore?: string
       }
     ) => {
       if (!apiClient) {
         return { data: [], recordCount: 0, error: 'API not initialized' }
       }
+      const openDateAfter =
+        typeof payload?.openDateAfter === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.openDateAfter.trim())
+          ? payload.openDateAfter.trim()
+          : undefined
+      const openDateBefore =
+        typeof payload?.openDateBefore === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.openDateBefore.trim())
+          ? payload.openDateBefore.trim()
+          : undefined
       return await apiClient.fetchMatterGeneralDetails({
         allMatters: Boolean(payload?.allMatters),
         matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
         matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
           ? payload.matterStatus.trim()
           : undefined,
-        detailKeys: Array.isArray(payload?.detailKeys) ? payload.detailKeys : []
+        detailKeys: Array.isArray(payload?.detailKeys) ? payload.detailKeys : [],
+        openDateAfter,
+        openDateBefore
       })
     }
   )

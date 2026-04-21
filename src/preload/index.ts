@@ -43,6 +43,8 @@ const api = {
       matterDisplayNumbers: string[]
       matterStatus?: string
       detailKeys: string[]
+      openDateAfter?: string
+      openDateBefore?: string
     }) => ipcRenderer.invoke('clio:fetch-matter-general-details', payload)
   },
   results: {

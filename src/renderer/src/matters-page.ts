@@ -567,12 +567,18 @@ export function setupMattersPage(): void {
       const matterStatusTrimmed = matterStatusEl!.value.trim()
       const matterStatus = matterStatusTrimmed !== '' ? matterStatusTrimmed : undefined
 
+      const dateRangeActive = shouldEnableMatterDateRangeFilters(matterStatusTrimmed, allMatters)
+      const openDateAfter = dateRangeActive && dateStartEl?.value ? dateStartEl.value : undefined
+      const openDateBefore = dateRangeActive && dateEndEl?.value ? dateEndEl.value : undefined
+
       try {
         const result = await window.api.clio.fetchMatterGeneralDetails({
           allMatters,
           matterDisplayNumbers: state.selected.map((m) => m.display_number),
           matterStatus,
-          detailKeys
+          detailKeys,
+          openDateAfter,
+          openDateBefore
         })
 
         console.log('Matters — general details', {

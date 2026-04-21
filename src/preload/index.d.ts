@@ -46,6 +46,8 @@ interface ClioAPI {
     matterDisplayNumbers: string[]
     matterStatus?: string
     detailKeys: string[]
+    openDateAfter?: string
+    openDateBefore?: string
   }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
 }
 

@@ -1,4 +1,8 @@
 import type { ClioRequestFn } from '../shared/clio-request'
+import {
+  appendMatterListDateRangeQuery,
+  matterListOrderForStatus
+} from '../shared/matter-list-date-filters'
 
 /**
  * Maps UI / frontend keys to Clio GET /matters `fields` fragments (v4).
@@ -65,54 +69,6 @@ function buildFieldsParam(detailKeys: string[]): string {
   return parts.join(',')
 }
 
-/** `YYYY-MM-DD` → start of that day in local time, as ISO string for Clio. */
-function startOfLocalDayIso(dateStr: string): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
-  if (!m) return null
-  const y = Number(m[1])
-  const mo = Number(m[2])
-  const d = Number(m[3])
-  if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) return null
-  const local = new Date(y, mo - 1, d)
-  if (local.getFullYear() !== y || local.getMonth() !== mo - 1 || local.getDate() !== d) return null
-  return local.toISOString()
-}
-
-/** Exclusive upper bound: start of the day after `dateStr` in local time (so `open_date <` includes all of end day). */
-function startOfNextLocalDayIso(dateStr: string): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
-  if (!m) return null
-  const y = Number(m[1])
-  const mo = Number(m[2])
-  const d = Number(m[3])
-  if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) return null
-  const next = new Date(y, mo - 1, d + 1)
-  return next.toISOString()
-}
-
-function listDateFilterField(matterStatus?: string): 'open_date' | 'close_date' {
-  return matterStatus === 'Closed' ? 'close_date' : 'open_date'
-}
-
-function appendMatterListDateFilters(
-  p: URLSearchParams,
-  field: 'open_date' | 'close_date',
-  dateAfter?: string,
-  dateBefore?: string
-): void {
-  const afterIso = dateAfter?.trim() ? startOfLocalDayIso(dateAfter) : null
-  const beforeExclusiveIso = dateBefore?.trim() ? startOfNextLocalDayIso(dateBefore) : null
-
-  if (afterIso && beforeExclusiveIso) {
-    p.append(`${field}[]`, `>${afterIso}`)
-    p.append(`${field}[]`, `<${beforeExclusiveIso}`)
-  } else if (afterIso) {
-    p.append(field, `>${afterIso}`)
-  } else if (beforeExclusiveIso) {
-    p.append(field, `<${beforeExclusiveIso}`)
-  }
-}
-
 function buildQuery(opts: {
   offset: number
   limit: number
@@ -125,8 +81,7 @@ function buildQuery(opts: {
   const p = new URLSearchParams()
   p.set('offset', String(opts.offset))
   p.set('limit', String(opts.limit))
-  const dateField = listDateFilterField(opts.matterStatus)
-  p.set('order', dateField === 'close_date' ? 'close_date(desc)' : 'open_date(desc)')
+  p.set('order', matterListOrderForStatus(opts.matterStatus))
   p.set('matter_access', 'full')
   if (opts.matterStatus) {
     p.set('status', opts.matterStatus)
@@ -135,7 +90,7 @@ function buildQuery(opts: {
   if (opts.query != null && opts.query !== '') {
     p.set('query', opts.query.trim())
   }
-  appendMatterListDateFilters(p, dateField, opts.openDateAfter, opts.openDateBefore)
+  appendMatterListDateRangeQuery(p, opts.matterStatus, opts.openDateAfter, opts.openDateBefore)
   return p.toString()
 }
 

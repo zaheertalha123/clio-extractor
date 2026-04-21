@@ -1,4 +1,8 @@
 import type { ClioRequestFn } from '../shared/clio-request'
+import {
+  appendMatterListDateRangeQuery,
+  matterListOrderForStatus
+} from '../shared/matter-list-date-filters'
 
 /** Matter list fields focused on custom_field_values (Clio v4 single-level nesting). */
 const CUSTOM_FIELDS_PAGE_MATTERS_FIELDS =
@@ -13,6 +17,12 @@ export interface CustomFieldsMatterFetchInput {
   customFieldIds: number[]
   /** Clio matter `status` filter (e.g. Open). Omit for all statuses. */
   matterStatus?: string
+  /**
+   * Date range when `allMatters` is true (`YYYY-MM-DD`). Same rules as Matters page:
+   * Open/Pending → `open_date`; Closed → `close_date`.
+   */
+  openDateAfter?: string
+  openDateBefore?: string
 }
 
 export interface CustomFieldsMatterFetchResult {
@@ -28,11 +38,13 @@ function buildQuery(opts: {
   query?: string
   matterStatus?: string
   customFieldIds: number[]
+  openDateAfter?: string
+  openDateBefore?: string
 }): string {
   const p = new URLSearchParams()
   p.set('offset', String(opts.offset))
   p.set('limit', String(opts.limit))
-  p.set('order', 'open_date(desc)')
+  p.set('order', matterListOrderForStatus(opts.matterStatus))
   p.set('matter_access', 'full')
   if (opts.matterStatus) {
     p.set('status', opts.matterStatus)
@@ -44,6 +56,7 @@ function buildQuery(opts: {
   if (opts.query != null && opts.query !== '') {
     p.set('query', opts.query.trim())
   }
+  appendMatterListDateRangeQuery(p, opts.matterStatus, opts.openDateAfter, opts.openDateBefore)
   return p.toString()
 }
 
@@ -66,13 +79,22 @@ export async function fetchCustomFieldsMatterData(
 
   const limit = 50
   const matterStatus = input.matterStatus?.trim() || undefined
+  const openDateAfter = input.allMatters ? input.openDateAfter?.trim() || undefined : undefined
+  const openDateBefore = input.allMatters ? input.openDateBefore?.trim() || undefined : undefined
 
   if (input.allMatters) {
     const rows: unknown[] = []
     let offset = 0
     const maxPages = 2000
     for (let page = 0; page < maxPages; page++) {
-      const qs = buildQuery({ offset, limit, matterStatus, customFieldIds })
+      const qs = buildQuery({
+        offset,
+        limit,
+        matterStatus,
+        customFieldIds,
+        openDateAfter,
+        openDateBefore
+      })
       const res = await request(`/matters?${qs}`)
       if (res.error) {
         return { data: [], recordCount: 0, error: res.error }

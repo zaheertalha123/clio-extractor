@@ -637,6 +637,12 @@ export function setupCustomFieldsPage(): void {
       const matterStatusRaw = (matterStatusElFetch?.value ?? '').trim()
       const matterStatus = matterStatusRaw !== '' ? matterStatusRaw : undefined
 
+      const dateRangeActive = shouldEnableMatterDateRangeFilters(matterStatusRaw, allMatters)
+      const dateStartForFetch = document.getElementById('rr-date-start') as HTMLInputElement | null
+      const dateEndForFetch = document.getElementById('rr-date-end') as HTMLInputElement | null
+      const openDateAfter = dateRangeActive && dateStartForFetch?.value ? dateStartForFetch.value : undefined
+      const openDateBefore = dateRangeActive && dateEndForFetch?.value ? dateEndForFetch.value : undefined
+
       fetchRecordsBtn!.disabled = true
       if (compileFetchStatusEl) {
         compileFetchStatusEl.textContent = 'Fetching…'
@@ -647,7 +653,9 @@ export function setupCustomFieldsPage(): void {
           allMatters,
           matterDisplayNumbers,
           customFieldIds,
-          matterStatus
+          matterStatus,
+          openDateAfter,
+          openDateBefore
         })
         if (result.error) {
           if (compileFetchStatusEl) {

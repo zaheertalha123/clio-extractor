@@ -40,6 +40,8 @@ interface ClioAPI {
     matterDisplayNumbers: string[]
     customFieldIds: number[]
     matterStatus?: string
+    openDateAfter?: string
+    openDateBefore?: string
   }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
   fetchMatterGeneralDetails: (payload: {
     allMatters: boolean

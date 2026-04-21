@@ -13,6 +13,46 @@
   margin-top: 12px;
 }
 
+.rr-matter-date-range-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-top: 12px;
+}
+
+.rr-matter-date-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--clio-text);
+}
+
+.rr-date-input {
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--clio-text);
+  border: 1px solid var(--clio-gray);
+  border-radius: 6px;
+  background: var(--clio-white);
+  box-sizing: border-box;
+}
+
+.rr-date-input:focus {
+  outline: none;
+  border-color: var(--clio-blue, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.rr-date-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--clio-bg-muted, rgba(0, 0, 0, 0.04));
+}
+
 .rr-all-matters-label {
   display: inline-flex;
   align-items: center;

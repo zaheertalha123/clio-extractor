@@ -1,4 +1,8 @@
-import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
+import {
+  MATTER_STATUS_OPTIONS_HTML,
+  shouldEnableMatterDateRangeFilters,
+  type MatterPickerRow
+} from './matters-selection-shared'
 
 interface Elements {
   input: HTMLInputElement
@@ -216,6 +220,16 @@ export function getMattersPageHtml(): string {
               <span>All Matters</span>
             </label>
           </div>
+          <div class="rr-matter-date-range-row" aria-label="Date range (optional)">
+            <div class="filter-group rr-matter-date-field">
+              <label for="mat-date-start">Start date</label>
+              <input type="date" id="mat-date-start" class="rr-date-input" disabled />
+            </div>
+            <div class="filter-group rr-matter-date-field">
+              <label for="mat-date-end">End date</label>
+              <input type="date" id="mat-date-end" class="rr-date-input" disabled />
+            </div>
+          </div>
           <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
           <div class="rr-status" id="mat-matter-input-status" aria-live="polite"></div>
         </div>
@@ -351,7 +365,20 @@ export function setupMattersPage(): void {
 
   matterStatusEl = document.getElementById('mat-matter-status') as HTMLSelectElement | null
   allMattersEl = document.getElementById('mat-all-matters') as HTMLInputElement | null
+  const dateStartEl = document.getElementById('mat-date-start') as HTMLInputElement | null
+  const dateEndEl = document.getElementById('mat-date-end') as HTMLInputElement | null
   if (!matterStatusEl || !allMattersEl) return
+
+  const syncMatterDateRangeFields = (): void => {
+    if (!dateStartEl || !dateEndEl) return
+    const enabled = shouldEnableMatterDateRangeFilters(matterStatusEl!.value, allMattersEl!.checked)
+    dateStartEl.disabled = !enabled
+    dateEndEl.disabled = !enabled
+    if (!enabled) {
+      dateStartEl.value = ''
+      dateEndEl.value = ''
+    }
+  }
 
   const state: UiState = {
     suggestions: [],
@@ -482,7 +509,14 @@ export function setupMattersPage(): void {
 
   allMattersEl.addEventListener('change', () => {
     applyAllMattersMode(allMattersEl!.checked)
+    syncMatterDateRangeFields()
   })
+
+  matterStatusEl.addEventListener('change', () => {
+    syncMatterDateRangeFields()
+  })
+
+  syncMatterDateRangeFields()
 
   const matFetchBtn = document.getElementById('mat-fetch-records-btn') as HTMLButtonElement | null
   const matFetchStatusEl = document.getElementById('mat-fetch-status')

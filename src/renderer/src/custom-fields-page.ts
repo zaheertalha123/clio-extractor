@@ -1,5 +1,9 @@
 import { resolvePicklistOptionLabel } from './custom-fields-picklist-maps'
-import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
+import {
+  MATTER_STATUS_OPTIONS_HTML,
+  shouldEnableMatterDateRangeFilters,
+  type MatterPickerRow
+} from './matters-selection-shared'
 
 export type CustomFieldsPageSelection =
   | { mode: 'all' }
@@ -356,6 +360,16 @@ export function getCustomFieldsPageHtml(): string {
               <span>All Matters</span>
             </label>
           </div>
+          <div class="rr-matter-date-range-row" aria-label="Date range (optional)">
+            <div class="filter-group rr-matter-date-field">
+              <label for="rr-date-start">Start date</label>
+              <input type="date" id="rr-date-start" class="rr-date-input" disabled />
+            </div>
+            <div class="filter-group rr-matter-date-field">
+              <label for="rr-date-end">End date</label>
+              <input type="date" id="rr-date-end" class="rr-date-input" disabled />
+            </div>
+          </div>
           <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
           <div class="rr-status" id="rr-matter-input-status" aria-live="polite"></div>
         </div>
@@ -412,6 +426,20 @@ export function setupCustomFieldsPage(): void {
     debounce: null,
     loading: false,
     selected: []
+  }
+
+  const dateStartEl = document.getElementById('rr-date-start') as HTMLInputElement | null
+  const dateEndEl = document.getElementById('rr-date-end') as HTMLInputElement | null
+
+  const syncMatterDateRangeFields = (): void => {
+    if (!dateStartEl || !dateEndEl || !matterStatusEl || !allMattersEl) return
+    const enabled = shouldEnableMatterDateRangeFilters(matterStatusEl.value, allMattersEl.checked)
+    dateStartEl.disabled = !enabled
+    dateEndEl.disabled = !enabled
+    if (!enabled) {
+      dateStartEl.value = ''
+      dateEndEl.value = ''
+    }
   }
 
   if (els && allMattersEl && matterStatusEl) {
@@ -539,8 +567,12 @@ export function setupCustomFieldsPage(): void {
 
   allMattersEl.addEventListener('change', () => {
     applyAllMattersMode(allMattersEl.checked)
+    syncMatterDateRangeFields()
   })
   }
+
+  matterStatusEl?.addEventListener('change', syncMatterDateRangeFields)
+  syncMatterDateRangeFields()
 
   const fetchRecordsBtn = document.getElementById('rr-fetch-records-btn') as HTMLButtonElement | null
   const compileReportBtn = document.getElementById('rr-compile-report-btn') as HTMLButtonElement | null

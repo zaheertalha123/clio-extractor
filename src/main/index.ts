@@ -14,6 +14,8 @@ loadEnv()
 let authManager: ClioAuthManager | null = null
 let apiClient: ClioAPIClient | null = null
 let mainWindow: BrowserWindow | null = null
+let splashWindow: BrowserWindow | null = null
+let appIpcHandlersRegistered = false
 
 export function getAuthManager(): ClioAuthManager | null {
   return authManager
@@ -162,7 +164,53 @@ function openOrUpdateTableResultsWindow(payload: TableResultsPayload): void {
   })
 }
 
-function createWindow(): void {
+function createSplashWindow(): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 520,
+    height: 380,
+    show: false,
+    center: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: true,
+    fullscreenable: false,
+    autoHideMenuBar: true,
+    title: 'Clio Extractor',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/splash.js'),
+      sandbox: false
+    }
+  })
+
+  win.on('ready-to-show', () => {
+    win.show()
+  })
+
+  const splashRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && splashRendererUrl) {
+    void win.loadURL(splashRendererUrl.replace(/\/?$/, '/') + 'splash.html')
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/splash.html'))
+  }
+
+  return win
+}
+
+function sendSplashLog(win: BrowserWindow | null, line: string): void {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('splash:log', line)
+  }
+}
+
+function sendSplashStatus(win: BrowserWindow | null, text: string): void {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('splash:status', text)
+  }
+}
+
+function createWindow(options?: { showWhenReady?: boolean }): void {
+  const showWhenReady = options?.showWhenReady ?? true
   // Create the browser window.
   const win = new BrowserWindow({
     width: 1100,
@@ -178,8 +226,10 @@ function createWindow(): void {
   mainWindow = win
 
   win.on('ready-to-show', () => {
-    win.maximize()
-    win.show()
+    if (showWhenReady) {
+      win.maximize()
+      win.show()
+    }
   })
 
   win.webContents.setWindowOpenHandler((details) => {
@@ -214,65 +264,9 @@ function createWindow(): void {
   }
 }
 
-function setupAutoUpdater(): void {
-  if (is.dev) return
-
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-
-  autoUpdater.on('update-available', (info) => {
-    mainWindow?.webContents.send('updater:update-available', { version: info.version })
-  })
-
-  autoUpdater.on('update-downloaded', (info) => {
-    mainWindow?.webContents.send('updater:update-downloaded', { version: info.version })
-  })
-
-  autoUpdater.on('download-progress', (progress) => {
-    mainWindow?.webContents.send('updater:download-progress', {
-      percent: progress.percent,
-      transferred: progress.transferred,
-      total: progress.total
-    })
-  })
-
-  autoUpdater.on('error', (err) => {
-    mainWindow?.webContents.send('updater:error', { message: err.message })
-  })
-
-  autoUpdater.on('update-not-available', () => {
-    mainWindow?.webContents.send('updater:up-to-date')
-  })
-
-  // Check for updates after a short delay so the window is ready
-  setTimeout(() => {
-    mainWindow?.webContents.send('updater:checking')
-    autoUpdater.checkForUpdates().catch((err) => {
-      console.error('Update check failed:', err)
-    })
-  }, 3000)
-}
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
-  // Initialize Clio Auth Manager and API Client
-  authManager = new ClioAuthManager()
-  apiClient = new ClioAPIClient(authManager)
+function registerAppIpcHandlers(): void {
+  if (appIpcHandlersRegistered || !apiClient) return
+  appIpcHandlersRegistered = true
 
   ipcMain.handle('clio:get-current-user', async () => {
     if (!apiClient) return { data: null, error: 'API not initialized' }
@@ -380,9 +374,10 @@ app.whenReady().then(() => {
         allMatters: Boolean(payload?.allMatters),
         matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
         customFieldIds: Array.isArray(payload?.customFieldIds) ? payload.customFieldIds : [],
-        matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
-          ? payload.matterStatus.trim()
-          : undefined,
+        matterStatus:
+          typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
+            ? payload.matterStatus.trim()
+            : undefined,
         openDateAfter,
         openDateBefore
       })
@@ -416,9 +411,10 @@ app.whenReady().then(() => {
       return await apiClient.fetchMatterGeneralDetails({
         allMatters: Boolean(payload?.allMatters),
         matterDisplayNumbers: Array.isArray(payload?.matterDisplayNumbers) ? payload.matterDisplayNumbers : [],
-        matterStatus: typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
-          ? payload.matterStatus.trim()
-          : undefined,
+        matterStatus:
+          typeof payload?.matterStatus === 'string' && payload.matterStatus.trim() !== ''
+            ? payload.matterStatus.trim()
+            : undefined,
         detailKeys: Array.isArray(payload?.detailKeys) ? payload.detailKeys : [],
         openDateAfter,
         openDateBefore
@@ -495,9 +491,157 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:get-version', () => app.getVersion())
+}
 
-  createWindow()
+async function runColdStartBootstrap(): Promise<void> {
+  const splash = createSplashWindow()
+  splashWindow = splash
+
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Splash screen load timed out')), 45_000)
+    splash.webContents.once('did-finish-load', () => {
+      clearTimeout(t)
+      resolve()
+    })
+    splash.webContents.once('did-fail-load', (_event, code, desc) => {
+      clearTimeout(t)
+      reject(new Error(`Splash failed to load (${code}): ${desc}`))
+    })
+  })
+
+  sendSplashStatus(splash, 'Starting…')
+  sendSplashLog(splash, 'Environment loaded')
+  sendSplashLog(splash, 'Initializing authentication module…')
+  authManager = new ClioAuthManager()
+  sendSplashLog(splash, 'Authentication module ready')
+
+  sendSplashLog(splash, 'Initializing Clio API client…')
+  apiClient = new ClioAPIClient(authManager)
+  sendSplashLog(splash, 'API client ready')
+
+  sendSplashLog(splash, 'Registering application services…')
+  registerAppIpcHandlers()
+
+  sendSplashStatus(splash, 'Checking session…')
+  if (authManager.isAuthenticated()) {
+    sendSplashLog(splash, 'Found saved credentials')
+    sendSplashLog(splash, 'Connecting to Clio (session / token refresh if needed)…')
+    const userRes = await apiClient.getCurrentUser()
+    if (userRes.error) {
+      sendSplashLog(splash, `API: ${userRes.error}`)
+    } else {
+      sendSplashLog(splash, 'Clio session verified')
+    }
+  } else {
+    sendSplashLog(splash, 'No saved session — sign in from the main window')
+  }
+
+  sendSplashStatus(splash, 'Loading interface…')
+  sendSplashLog(splash, 'Opening main window…')
+  createWindow({ showWhenReady: false })
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error('Main window was not created')
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Main window load timed out')), 90_000)
+    mainWindow!.webContents.once('did-finish-load', () => {
+      clearTimeout(t)
+      resolve()
+    })
+    mainWindow!.webContents.once('did-fail-load', (_event, code, desc, _validatedURL, isMainFrame) => {
+      if (isMainFrame) {
+        clearTimeout(t)
+        reject(new Error(`Main window failed to load (${code}): ${desc}`))
+      }
+    })
+  })
+
+  sendSplashLog(splash, 'Startup complete.')
+  sendSplashStatus(splash, 'Ready')
+  await new Promise((r) => setTimeout(r, 220))
+
+  splashWindow = null
+  splash.destroy()
+
+  mainWindow.maximize()
+  mainWindow.show()
+  mainWindow.focus()
+
   setupAutoUpdater()
+}
+
+function setupAutoUpdater(): void {
+  if (is.dev) return
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('updater:update-available', { version: info.version })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('updater:update-downloaded', { version: info.version })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('updater:download-progress', {
+      percent: progress.percent,
+      transferred: progress.transferred,
+      total: progress.total
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    mainWindow?.webContents.send('updater:error', { message: err.message })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    mainWindow?.webContents.send('updater:up-to-date')
+  })
+
+  // Check for updates after a short delay so the window is ready
+  setTimeout(() => {
+    mainWindow?.webContents.send('updater:checking')
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Update check failed:', err)
+    })
+  }, 3000)
+}
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.whenReady().then(() => {
+  // Set app user model id for windows
+  electronApp.setAppUserModelId('com.electron')
+
+  // Default open or close DevTools by F12 in development
+  // and ignore CommandOrControl + R in production.
+  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
+
+  // IPC test
+  ipcMain.on('ping', () => console.log('pong'))
+
+  void runColdStartBootstrap().catch((err) => {
+    console.error('Cold start failed:', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    try {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.destroy()
+      }
+    } catch {
+      // ignore
+    }
+    splashWindow = null
+    dialog.showErrorBox('Clio Extractor', `Could not start the application.\n\n${msg}`)
+    app.quit()
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

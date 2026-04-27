@@ -1,0 +1,114 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: #32325d;
+  background: linear-gradient(165deg, #e6f0f9 0%, #ffffff 55%, #f5f7fa 100%);
+  user-select: none;
+}
+
+.splash-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 28px 24px 20px;
+}
+
+.splash-company {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.splash-company-logo {
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.splash-brand {
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.splash-logo {
+  display: block;
+  margin: 0 auto 14px;
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 4px 16px rgba(0, 62, 126, 0.12);
+}
+
+.splash-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #003e7e;
+}
+
+.splash-tagline {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7c93;
+}
+
+.splash-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 18px auto 0;
+  border: 3px solid #e0e6ed;
+  border-top-color: #003e7e;
+  border-radius: 50%;
+  animation: splash-spin 0.72s linear infinite;
+}
+
+@keyframes splash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.splash-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  align-self: stretch;
+  text-align: left;
+}
+
+/* Single status line, lower-left; each new message replaces the previous */
+.splash-message {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  font-family: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #5c6570;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

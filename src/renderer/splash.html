@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Clio Extractor</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <link rel="stylesheet" href="./assets/splash.css" />
+  </head>
+  <body>
+    <div class="splash-root">
+      <div class="splash-company" aria-label="Company logo">
+        <img id="splash-company-logo" class="splash-company-logo" alt="" width="96" height="96" />
+      </div>
+      <div class="splash-brand">
+        <img src="./assets/clio-extractor-logo.png" alt="" class="splash-logo" width="80" height="80" />
+        <h1 class="splash-title">Clio Extractor</h1>
+        <p class="splash-tagline">Clio Data Extractor</p>
+        <div class="splash-spinner" role="status" aria-label="Loading"></div>
+      </div>
+      <div class="splash-footer">
+        <p id="splash-message" class="splash-message" aria-live="polite">Starting…</p>
+      </div>
+    </div>
+    <script type="module" src="./src/splash-renderer.ts"></script>
+  </body>
+</html>

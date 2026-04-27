@@ -182,27 +182,31 @@ async function checkAuthStatus(): Promise<void> {
   try {
     const isAuthenticated = await window.api.clio.isAuthenticated()
 
-    if (loadingContainer) loadingContainer.style.display = isAuthenticated ? 'none' : 'block'
+    if (loadingContainer) loadingContainer.style.display = 'none'
 
-    if (isAuthenticated) {
-      if (loginView) loginView.style.display = 'none'
-      if (appView) appView.style.display = 'flex'
-      const userFlow = await loadCurrentUser()
-      if (userFlow === 'signed-out') {
-        return
-      }
-      await loadAppVersion()
-      await loadPage('home')
-    } else {
+    if (!isAuthenticated) {
       activePageId = null
       if (loginView) loginView.style.display = 'flex'
       if (appView) appView.style.display = 'none'
       if (loginContainer) loginContainer.style.display = 'block'
+      return
     }
+
+    if (loginView) loginView.style.display = 'none'
+    if (appView) appView.style.display = 'flex'
+
+    const userFlow = await loadCurrentUser()
+    if (userFlow === 'signed-out') {
+      return
+    }
+    await loadAppVersion()
+    await loadPage('home')
   } catch (error) {
     console.error('Failed to check auth status:', error)
     showStatus('Error checking authentication status', 'error')
-    if (loadingContainer) loadingContainer.style.display = 'none'
+    activePageId = null
+    if (loginView) loginView.style.display = 'flex'
+    if (appView) appView.style.display = 'none'
     if (loginContainer) loginContainer.style.display = 'block'
   }
 }

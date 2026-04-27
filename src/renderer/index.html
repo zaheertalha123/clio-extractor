@@ -13,7 +13,7 @@
 
   <body>
     <!-- Login view (shown when not authenticated) -->
-    <div id="login-view">
+    <div id="login-view" style="display: none">
       <div class="login-card">
         <img alt="Clio Extractor" class="logo" src="./assets/clio-extractor-logo.png" />
         <div class="creator">Clio Data Extractor</div>
@@ -30,9 +30,7 @@
             </div>
           </div>
 
-          <div id="loading-container">
-            <p class="tip">Checking authentication status...</p>
-          </div>
+          <div id="loading-container" style="display: none" hidden></div>
         </div>
 
         <div id="status-message"></div>

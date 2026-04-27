@@ -15,6 +15,7 @@ let authManager: ClioAuthManager | null = null
 let apiClient: ClioAPIClient | null = null
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
+let aboutWindow: BrowserWindow | null = null
 let appIpcHandlersRegistered = false
 
 export function getAuthManager(): ClioAuthManager | null {
@@ -264,6 +265,58 @@ function createWindow(options?: { showWhenReady?: boolean }): void {
   }
 }
 
+function openAboutWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    aboutWindow.focus()
+    return
+  }
+
+  const win = new BrowserWindow({
+    width: 460,
+    height: 560,
+    minWidth: 400,
+    minHeight: 480,
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    autoHideMenuBar: true,
+    title: 'About Clio Extractor',
+    icon: process.platform !== 'darwin' ? icon : undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+  aboutWindow = win
+
+  win.on('closed', () => {
+    aboutWindow = null
+  })
+
+  win.webContents.setWindowOpenHandler((details) => {
+    void shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('file:')) return
+    event.preventDefault()
+    void shell.openExternal(url)
+  })
+
+  win.once('ready-to-show', () => {
+    win.show()
+  })
+
+  const aboutRendererUrl = process.env['ELECTRON_RENDERER_URL'] || ''
+  if (is.dev && aboutRendererUrl) {
+    void win.loadURL(aboutRendererUrl.replace(/\/?$/, '/') + 'about.html')
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/about.html'))
+  }
+}
+
 function registerAppIpcHandlers(): void {
   if (appIpcHandlersRegistered || !apiClient) return
   appIpcHandlersRegistered = true
@@ -473,6 +526,10 @@ function registerAppIpcHandlers(): void {
       records: payload.records,
       csvBaseName: payload.csvBaseName
     })
+  })
+
+  ipcMain.handle('window:open-about', () => {
+    openAboutWindow()
   })
 
   ipcMain.handle('updater:quit-and-install', () => {

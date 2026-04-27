@@ -18,6 +18,7 @@ export default defineConfig({
         input: {
           index: 'src/renderer/index.html',
           splash: 'src/renderer/splash.html',
+          about: 'src/renderer/about.html',
           results: 'src/renderer/results.html',
           'results-unpaid-bills': 'src/renderer/results-unpaid-bills.html',
           'results-table': 'src/renderer/results-table.html'

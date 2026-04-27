@@ -1,0 +1,93 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #32325d;
+  background: #f5f7fa;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+}
+
+.about-page {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 28px 24px 32px;
+}
+
+.about-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.about-logo {
+  display: block;
+  margin: 0 auto 12px;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0, 62, 126, 0.12);
+}
+
+.about-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #003e7e;
+  letter-spacing: -0.02em;
+}
+
+.about-version {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #6b7c93;
+}
+
+.about-section {
+  margin-bottom: 22px;
+}
+
+.about-heading {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #003e7e;
+  margin-bottom: 10px;
+}
+
+.about-text {
+  font-size: 14px;
+  color: #32325d;
+  margin-bottom: 8px;
+}
+
+.about-text:last-child {
+  margin-bottom: 0;
+}
+
+.about-link {
+  color: #0055aa;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}
+
+.about-hint {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #8898aa;
+}

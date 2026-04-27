@@ -79,6 +79,7 @@ declare global {
       openResultsWindow: (data: unknown[]) => Promise<void>
       openUnpaidBillsResults: (data: unknown[]) => Promise<void>
       openTableResults: (payload: TableResultsPayload) => Promise<void>
+      openAboutWindow: () => Promise<void>
       showClioConnectionDialog: () => Promise<'retry' | 'signout'>
       updater: UpdaterAPI
       getAppVersion: () => Promise<string>

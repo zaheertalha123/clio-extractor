@@ -104,9 +104,17 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
   flex: 1;
+  min-width: 0;
 }
 
-.sidebar-update-btn {
+.sidebar-footer-icon-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.sidebar-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -121,17 +129,17 @@
   transition: background 0.2s, color 0.2s;
 }
 
-.sidebar-update-btn:hover {
+.sidebar-icon-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--clio-white);
 }
 
-.sidebar-update-btn:disabled {
+.sidebar-icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.sidebar-update-icon {
+.sidebar-icon-svg {
   width: 16px;
   height: 16px;
 }

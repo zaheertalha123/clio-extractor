@@ -479,12 +479,16 @@ async function handleFetchRevenue(): Promise<void> {
 
 function setupEventListeners(): void {
   const loginBtn = document.getElementById('loginBtn')
+  const sidebarAboutBtn = document.getElementById('sidebar-about')
   const sidebarCheckUpdatesBtn = document.getElementById('sidebar-check-updates')
   const userMenuBtn = document.getElementById('sidebar-user-menu-btn')
   const userMenu = document.getElementById('sidebar-user-menu')
   const userMenuLogout = document.querySelector('[data-action="logout"]')
 
   loginBtn?.addEventListener('click', handleLogin)
+  sidebarAboutBtn?.addEventListener('click', () => {
+    void window.api.openAboutWindow()
+  })
   sidebarCheckUpdatesBtn?.addEventListener('click', handleCheckForUpdates)
 
   userMenuBtn?.addEventListener('click', (e) => {
@@ -556,12 +560,17 @@ async function handleCheckForUpdates(): Promise<void> {
   if (!window.api?.updater) return
   if (btn) {
     btn.disabled = true
-    btn.textContent = 'Checking...'
+    btn.setAttribute('aria-busy', 'true')
+    btn.setAttribute('title', 'Checking for updates…')
   }
   await window.api.updater.checkForUpdates()
   // Re-enable after a short delay; toasts show "You're up to date" or update result
   setTimeout(() => {
-    if (btn) btn.disabled = false
+    if (btn) {
+      btn.disabled = false
+      btn.removeAttribute('aria-busy')
+      btn.setAttribute('title', 'Check for updates')
+    }
   }, 3000)
 }
 

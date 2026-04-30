@@ -51,6 +51,8 @@ const MATTER_DETAIL_RESPONSE_PROP: Readonly<Record<string, string>> = {
   close_date: 'close_date',
   limitations_date: 'statute_of_limitations',
   billable: 'billable',
+  /** API property on matter row */
+  custom_rates: 'custom_rate',
   maildrop_address: 'maildrop_address'
 }
 
@@ -71,6 +73,7 @@ const MATTER_GENERAL_DETAIL_OPTIONS: ReadonlyArray<{ key: string; label: string;
   { key: 'close_date', label: 'Closed date', defaultChecked: false },
   { key: 'limitations_date', label: 'Limitations date', defaultChecked: false },
   { key: 'billable', label: 'Billable', defaultChecked: true },
+  { key: 'custom_rates', label: 'Custom Rates', defaultChecked: false },
   { key: 'maildrop_address', label: 'Maildrop address', defaultChecked: true }
 ]
 
@@ -132,6 +135,33 @@ function formatPracticeAreaForTable(v: unknown): string {
   return name
 }
 
+/** Rates in one cell, separated by `'; '` — `{type} - {user name} - {rate}` each (from matter.custom_rate). */
+function formatCustomRatesForTable(v: unknown): string {
+  if (v == null || typeof v !== 'object') {
+    return ''
+  }
+  const o = v as { type?: unknown; rates?: unknown }
+  const typeStr = o.type != null ? String(o.type).trim() : ''
+  const rates = o.rates
+  if (!Array.isArray(rates) || rates.length === 0) {
+    return typeStr
+  }
+  const lines: string[] = []
+  for (const r of rates) {
+    if (r == null || typeof r !== 'object') continue
+    const row = r as { rate?: unknown; user?: unknown }
+    const rateVal = row.rate
+    let userName = ''
+    const u = row.user
+    if (u != null && typeof u === 'object' && 'name' in u) {
+      userName = String((u as { name: unknown }).name).trim()
+    }
+    const rateNum = rateVal != null ? String(rateVal).trim() : ''
+    lines.push(`${typeStr} - ${userName} - ${rateNum}`)
+  }
+  return lines.filter((line) => line.trim().length > 0).join('; ')
+}
+
 function formatGeneralDetailCellForTable(detailKey: string, raw: unknown): string {
   switch (detailKey) {
     case 'responsible_attorney':
@@ -141,6 +171,8 @@ function formatGeneralDetailCellForTable(detailKey: string, raw: unknown): strin
       return formatResponsibleStaffForTable(raw)
     case 'practice_area':
       return formatPracticeAreaForTable(raw)
+    case 'custom_rates':
+      return formatCustomRatesForTable(raw)
     default:
       return formatTableCellValue(raw)
   }

@@ -24,6 +24,8 @@ export const MATTER_GENERAL_DETAIL_FIELD_MAP: Readonly<Record<string, string>> =
   close_date: 'close_date',
   limitations_date: 'statute_of_limitations{id,due_at,status,reminders}',
   billable: 'billable',
+  /** Clio only accepts bare `custom_rate` here (nested field lists return InvalidFields); response is narrowed in code. */
+  custom_rates: 'custom_rate',
   maildrop_address: 'maildrop_address'
 }
 
@@ -54,11 +56,58 @@ export interface MatterGeneralDetailsFetchResult {
 
 const BASE_LIST_FIELDS = 'id,display_number'
 
+function resolveRequestedDetailKeys(detailKeys: string[]): string[] {
+  return detailKeys.length > 0
+    ? [...new Set(detailKeys.filter((k) => k in MATTER_GENERAL_DETAIL_FIELD_MAP))]
+    : [...MATTER_GENERAL_DETAIL_KEYS]
+}
+
+/**
+ * Keeps only `type`, `rates[].rate`, and `rates[].user.name` from Clio `custom_rate`.
+ */
+export function slimCustomRateForClient(apiValue: unknown): unknown {
+  if (apiValue == null || typeof apiValue !== 'object') {
+    return apiValue
+  }
+  const o = apiValue as { type?: unknown; rates?: unknown }
+  const rates: Array<{ rate: unknown; user: { name: string } }> = []
+  if (Array.isArray(o.rates)) {
+    for (const r of o.rates) {
+      if (r == null || typeof r !== 'object') continue
+      const row = r as { rate?: unknown; user?: unknown }
+      let name = ''
+      const u = row.user
+      if (u != null && typeof u === 'object' && 'name' in u) {
+        name = String((u as { name: unknown }).name).trim()
+      }
+      rates.push({ rate: row.rate ?? null, user: { name } })
+    }
+  }
+  return {
+    type: o.type,
+    rates
+  }
+}
+
+function slimMatterRowsCustomRate(rows: unknown[], wantsCustomRates: boolean): unknown[] {
+  if (!wantsCustomRates || rows.length === 0) {
+    return rows
+  }
+  return rows.map((row) => {
+    if (row == null || typeof row !== 'object') return row
+    const m = row as Record<string, unknown>
+    if (!Object.prototype.hasOwnProperty.call(m, 'custom_rate')) {
+      return row
+    }
+    return {
+      ...m,
+      custom_rate: slimCustomRateForClient(m.custom_rate)
+    }
+  })
+}
+
 function buildFieldsParam(detailKeys: string[]): string {
-  const keys =
-    detailKeys.length > 0
-      ? [...new Set(detailKeys.filter((k) => k in MATTER_GENERAL_DETAIL_FIELD_MAP))]
-      : [...MATTER_GENERAL_DETAIL_KEYS]
+  const keys = resolveRequestedDetailKeys(detailKeys)
   const parts = [BASE_LIST_FIELDS]
   for (const k of keys) {
     const frag = MATTER_GENERAL_DETAIL_FIELD_MAP[k]
@@ -106,6 +155,8 @@ export async function fetchMatterGeneralDetails(
   request: ClioRequestFn,
   input: MatterGeneralDetailsFetchInput
 ): Promise<MatterGeneralDetailsFetchResult> {
+  const detailKeysResolved = resolveRequestedDetailKeys(input.detailKeys ?? [])
+  const wantsCustomRates = detailKeysResolved.includes('custom_rates')
   const fields = buildFieldsParam(input.detailKeys ?? [])
   const limit = 50
   const matterStatus = input.matterStatus?.trim() || undefined
@@ -136,7 +187,8 @@ export async function fetchMatterGeneralDetails(
       }
       offset += limit
     }
-    return { data: rows, recordCount: rows.length }
+    const data = slimMatterRowsCustomRate(rows, wantsCustomRates)
+    return { data, recordCount: data.length }
   }
 
   const uniqueDisplays = [
@@ -189,5 +241,6 @@ export async function fetchMatterGeneralDetails(
     }
   }
 
-  return { data: rows, recordCount: rows.length }
+  const data = slimMatterRowsCustomRate(rows, wantsCustomRates)
+  return { data, recordCount: data.length }
 }

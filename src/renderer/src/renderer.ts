@@ -41,6 +41,7 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
     title: 'Matters',
     description: 'Choose matter filters for Custom Fields and other exports.'
   },
+  /* Firm Revenue & Unpaid Bills: nav items commented out in index.html; routes still wired below if re-enabled */
   'firm-revenue': {
     title: 'Firm Revenue',
     description: 'Extract and analyze firm revenue data from Clio.'
@@ -60,7 +61,7 @@ function getHomePageHtml(): string {
     <div class="home-page">
       <img alt="Clio Extractor" class="home-logo" src="${logoUrl}" />
       <h1 class="home-title">Clio Extractor</h1>
-      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Matters, Custom Fields, Firm Revenue, or Unpaid Bills.</p>
+      <p class="home-description">Extract and analyze data from your Clio account. Use the sidebar to open Schema, Matters, or Custom Fields.</p>
     </div>
   `
 }
@@ -69,6 +70,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'home') return getHomePageHtml()
   if (pageId === 'schema') return getSchemaPageHtml()
   if (pageId === 'matters') return getMattersPageHtml()
+  /* firm-revenue / unpaid-bills: sidebar hidden; keep branches for when nav is re-enabled */
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
   if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
@@ -316,8 +318,7 @@ async function loadPage(pageId: PageId): Promise<void> {
   } else if (pageId === 'firm-revenue') {
     await loadFirmRevenueOptions()
     setupFirmRevenueListeners()
-  }
-  if (pageId === 'unpaid-bills') {
+  } else if (pageId === 'unpaid-bills') {
     await loadUnpaidBillsOptions()
     setupUnpaidBillsListeners()
   }

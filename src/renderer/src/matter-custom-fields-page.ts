@@ -1,6 +1,19 @@
 import { setupMatterDateRangePicker } from './matter-date-range-ui'
 import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
 import { buildMatterGeneralDetailsCheckboxesHtml } from './matter-general-details-shared'
+import {
+  getCustomFieldsPicklistSectionHtml,
+  getCustomFieldsPicklistSelection,
+  setupCustomFieldsPicklistSection,
+  type CustomFieldsPageSelection,
+  type CustomFieldsPicklistDomIds
+} from './custom-fields-page'
+
+const MCF_CF_PICKLIST_IDS: CustomFieldsPicklistDomIds = {
+  scopeSelectId: 'mcf-custom-fields-scope',
+  checkboxesContainerId: 'mcf-custom-fields-checkboxes',
+  selectAllCheckboxId: 'mcf-cf-select-all'
+}
 
 interface Elements {
   input: HTMLInputElement
@@ -145,11 +158,16 @@ export function getSelectedMcfGeneralDetailKeys(): string[] {
     .filter((k) => k.length > 0)
 }
 
+/** Custom Fields picklist selection on this page (Include / specific checkboxes). */
+export function getSelectedMcfCustomFieldsPicklist(): CustomFieldsPageSelection {
+  return getCustomFieldsPicklistSelection(MCF_CF_PICKLIST_IDS)
+}
+
 export function getMatterCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
       <h1 class="page-title">Matter+Custom Fields</h1>
-      <p class="page-description">Filter by matter status, search by Matter ID, or include all matters — same as Matters and Custom Fields. Additional sections will follow.</p>
+      <p class="page-description">Choose matters, general detail fields, and custom fields — same controls as the Matters and Custom Fields pages. Fetch actions will be wired next.</p>
     </div>
     <div class="custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="mcf-section-matter-title">
@@ -253,6 +271,16 @@ export function getMatterCustomFieldsPageHtml(): string {
           ${mcfGeneralDetailsCheckboxesHtml()}
         </div>
       </section>
+
+      ${getCustomFieldsPicklistSectionHtml({
+        sectionAriaLabelledBy: 'mcf-section-cf-title',
+        sectionTitleId: 'mcf-section-cf-title',
+        scopeSelectId: 'mcf-custom-fields-scope',
+        panelId: 'mcf-custom-fields-panel',
+        selectAllId: 'mcf-cf-select-all',
+        checkboxesId: 'mcf-custom-fields-checkboxes',
+        hintId: 'mcf-cf-all-hint'
+      })}
     </div>
   `
 }
@@ -406,4 +434,6 @@ export function setupMatterCustomFieldsPage(): void {
     matterStatusSelectId: 'mcf-matter-status',
     allMattersCheckboxId: 'mcf-all-matters'
   })
+
+  setupCustomFieldsPicklistSection(MCF_CF_PICKLIST_IDS)
 }

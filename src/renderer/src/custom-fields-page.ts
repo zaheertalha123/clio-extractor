@@ -313,6 +313,53 @@ function cfMatterRenderChipRow(els: CfMatterElements, state: CfMatterUiState): v
   }
 }
 
+const RR_CF_PICKLIST_IDS = {
+  scopeSelectId: 'rr-custom-fields-scope',
+  checkboxesContainerId: 'rr-custom-fields-checkboxes',
+  selectAllCheckboxId: 'rr-cf-select-all'
+} as const
+
+/** Matter custom fields picklist (Include / Specific / checkboxes). Reusable on Custom Fields and Matter+Custom Fields pages. */
+export function getCustomFieldsPicklistSectionHtml(opts: {
+  sectionAriaLabelledBy: string
+  sectionTitleId: string
+  scopeSelectId: string
+  panelId: string
+  selectAllId: string
+  checkboxesId: string
+  hintId: string
+}): string {
+  const o = opts
+  return `
+      <section class="rr-section rr-section--custom-fields" aria-labelledby="${o.sectionAriaLabelledBy}">
+        <h2 class="rr-section-title" id="${o.sectionTitleId}">Custom Fields</h2>
+        <div class="filter-group rr-cf-scope-wrap">
+          <label for="${o.scopeSelectId}">Include</label>
+          <select id="${o.scopeSelectId}" class="rr-custom-fields-scope">
+            <option value="all">All</option>
+            <option value="specific" selected>Specific fields…</option>
+          </select>
+        </div>
+        <div id="${o.panelId}" class="rr-custom-fields-panel">
+          <label class="rr-cf-select-all">
+            <input type="checkbox" id="${o.selectAllId}" />
+            <span>Select all</span>
+          </label>
+          <div
+            id="${o.checkboxesId}"
+            class="rr-custom-fields-checkboxes"
+            role="group"
+            aria-label="Matter custom fields"
+          ></div>
+        </div>
+        <p class="rr-cf-all-hint" id="${o.hintId}">
+          Specific fields… is the default: the first group is preselected. All: include every field. Switching back from
+          All restores the default selection.
+        </p>
+      </section>
+  `
+}
+
 export function getCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
@@ -412,32 +459,15 @@ export function getCustomFieldsPageHtml(): string {
         </div>
       </section>
 
-      <section class="rr-section rr-section--custom-fields" aria-labelledby="rr-section-cf-title">
-        <h2 class="rr-section-title" id="rr-section-cf-title">Custom Fields</h2>
-        <div class="filter-group rr-cf-scope-wrap">
-          <label for="rr-custom-fields-scope">Include</label>
-          <select id="rr-custom-fields-scope" class="rr-custom-fields-scope">
-            <option value="all">All</option>
-            <option value="specific" selected>Specific fields…</option>
-          </select>
-        </div>
-        <div id="rr-custom-fields-panel" class="rr-custom-fields-panel">
-          <label class="rr-cf-select-all">
-            <input type="checkbox" id="rr-cf-select-all" />
-            <span>Select all</span>
-          </label>
-          <div
-            id="rr-custom-fields-checkboxes"
-            class="rr-custom-fields-checkboxes"
-            role="group"
-            aria-label="Matter custom fields"
-          ></div>
-        </div>
-        <p class="rr-cf-all-hint" id="rr-cf-all-hint">
-          Specific fields… is the default: the first group is preselected. All: include every field. Switching back from
-          All restores the default selection.
-        </p>
-      </section>
+      ${getCustomFieldsPicklistSectionHtml({
+        sectionAriaLabelledBy: 'rr-section-cf-title',
+        sectionTitleId: 'rr-section-cf-title',
+        scopeSelectId: 'rr-custom-fields-scope',
+        panelId: 'rr-custom-fields-panel',
+        selectAllId: 'rr-cf-select-all',
+        checkboxesId: 'rr-custom-fields-checkboxes',
+        hintId: 'rr-cf-all-hint'
+      })}
 
       <div class="form-actions rr-compile-actions">
         <button type="button" id="rr-fetch-records-btn" class="button">Fetch records</button>
@@ -728,10 +758,17 @@ export function setupCustomFieldsPage(): void {
   })
 }
 
-function setupCustomFieldsSection(): void {
-  const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
-  const containerEl = document.getElementById('rr-custom-fields-checkboxes')
-  const selectAllEl = document.getElementById('rr-cf-select-all') as HTMLInputElement | null
+export type CustomFieldsPicklistDomIds = {
+  scopeSelectId: string
+  checkboxesContainerId: string
+  selectAllCheckboxId: string
+}
+
+/** Populate scope / select-all / checkbox grid for Matter custom fields (same field list as Custom Fields page). */
+export function setupCustomFieldsPicklistSection(ids: CustomFieldsPicklistDomIds): void {
+  const scopeEl = document.getElementById(ids.scopeSelectId) as HTMLSelectElement | null
+  const containerEl = document.getElementById(ids.checkboxesContainerId)
+  const selectAllEl = document.getElementById(ids.selectAllCheckboxId) as HTMLInputElement | null
   if (!scopeEl || !containerEl || !selectAllEl) return
 
   const fields = [...PLACEHOLDER_MATTER_CUSTOM_FIELDS]
@@ -815,9 +852,13 @@ function setupCustomFieldsSection(): void {
   applyScope()
 }
 
-function getCustomFieldsSelection(): CustomFieldsPageSelection {
-  const scopeEl = document.getElementById('rr-custom-fields-scope') as HTMLSelectElement | null
-  const containerEl = document.getElementById('rr-custom-fields-checkboxes')
+function setupCustomFieldsSection(): void {
+  setupCustomFieldsPicklistSection(RR_CF_PICKLIST_IDS)
+}
+
+export function getCustomFieldsPicklistSelection(ids: CustomFieldsPicklistDomIds): CustomFieldsPageSelection {
+  const scopeEl = document.getElementById(ids.scopeSelectId) as HTMLSelectElement | null
+  const containerEl = document.getElementById(ids.checkboxesContainerId)
   if (!scopeEl || !containerEl) {
     return { mode: 'specific', fieldIds: [], checkedFields: [] }
   }
@@ -837,6 +878,10 @@ function getCustomFieldsSelection(): CustomFieldsPageSelection {
     .map((c) => c.clioFieldId)
     .filter((id): id is number => id != null)
   return { mode: 'specific', fieldIds, checkedFields }
+}
+
+function getCustomFieldsSelection(): CustomFieldsPageSelection {
+  return getCustomFieldsPicklistSelection(RR_CF_PICKLIST_IDS)
 }
 
 /** Resolves which Clio custom_field ids to request (all mapped ids vs checked subset). */

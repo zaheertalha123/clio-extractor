@@ -47,7 +47,16 @@ const api = {
       detailKeys: string[]
       openDateAfter?: string
       openDateBefore?: string
-    }) => ipcRenderer.invoke('clio:fetch-matter-general-details', payload)
+    }) => ipcRenderer.invoke('clio:fetch-matter-general-details', payload),
+    fetchMatterCombinedReport: (payload: {
+      allMatters: boolean
+      matterDisplayNumbers: string[]
+      matterStatus?: string
+      detailKeys: string[]
+      customFieldIds: number[]
+      openDateAfter?: string
+      openDateBefore?: string
+    }) => ipcRenderer.invoke('clio:fetch-matter-combined-report', payload)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {

@@ -11,6 +11,11 @@ import {
   type MatterGeneralDetailsFetchResult,
   type MatterGeneralDetailsFetchInput
 } from './api/matters/matter-general-details-fetch'
+import {
+  fetchMatterGeneralDetailsAndCustomFields,
+  type MatterCombinedFetchInput,
+  type MatterCombinedFetchResult
+} from './api/matters/matter-combined-fetch'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -139,6 +144,14 @@ class ClioAPIClient {
     params: MatterGeneralDetailsFetchInput
   ): Promise<MatterGeneralDetailsFetchResult> {
     return fetchMatterGeneralDetails(
+      (endpoint, options) => this.makeRequest(endpoint, options),
+      params
+    )
+  }
+
+  /** Matter+Custom Fields page: general details + custom field values, merged per matter. */
+  async fetchMatterCombinedReport(params: MatterCombinedFetchInput): Promise<MatterCombinedFetchResult> {
+    return fetchMatterGeneralDetailsAndCustomFields(
       (endpoint, options) => this.makeRequest(endpoint, options),
       params
     )

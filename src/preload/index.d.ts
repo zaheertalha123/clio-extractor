@@ -51,6 +51,15 @@ interface ClioAPI {
     openDateAfter?: string
     openDateBefore?: string
   }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
+  fetchMatterCombinedReport: (payload: {
+    allMatters: boolean
+    matterDisplayNumbers: string[]
+    matterStatus?: string
+    detailKeys: string[]
+    customFieldIds: number[]
+    openDateAfter?: string
+    openDateBefore?: string
+  }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
 }
 
 interface ResultsAPI {

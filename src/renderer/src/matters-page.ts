@@ -159,7 +159,7 @@ function formatGeneralDetailCellForTable(detailKey: string, raw: unknown): strin
   }
 }
 
-function buildMattersGeneralDetailsTablePayload(
+export function buildMattersGeneralDetailsTablePayload(
   matters: unknown[],
   detailKeys: string[]
 ): { columns: Array<{ key: string; label: string }>; records: Record<string, unknown>[] } {

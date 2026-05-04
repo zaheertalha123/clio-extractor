@@ -885,7 +885,7 @@ function getCustomFieldsSelection(): CustomFieldsPageSelection {
 }
 
 /** Resolves which Clio custom_field ids to request (all mapped ids vs checked subset). */
-function resolveCustomFieldClioIdsForRequest(sel: CustomFieldsPageSelection): number[] {
+export function resolveCustomFieldClioIdsForRequest(sel: CustomFieldsPageSelection): number[] {
   if (sel.mode === 'all') {
     const ids = Object.values(MATTER_CUSTOM_FIELD_CLIO_IDS).filter(
       (id): id is number => typeof id === 'number' && Number.isFinite(id)
@@ -969,7 +969,7 @@ function findCustomFieldCellValue(cfvs: MatterCfValueRow[], fieldId: number): st
   return ''
 }
 
-function buildCustomFieldsPageTablePayload(
+export function buildCustomFieldsPageTablePayload(
   matters: unknown[],
   customFieldIds: number[]
 ): { columns: Array<{ key: string; label: string }>; records: Record<string, unknown>[] } {

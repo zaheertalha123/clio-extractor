@@ -1,13 +1,15 @@
 import { setupMatterDateRangePicker } from './matter-date-range-ui'
-import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
+import { MATTER_STATUS_OPTIONS_HTML, shouldEnableMatterDateRangeFilters, type MatterPickerRow } from './matters-selection-shared'
 import { buildMatterGeneralDetailsCheckboxesHtml } from './matter-general-details-shared'
 import {
   getCustomFieldsPicklistSectionHtml,
   getCustomFieldsPicklistSelection,
+  resolveCustomFieldClioIdsForRequest,
   setupCustomFieldsPicklistSection,
   type CustomFieldsPageSelection,
   type CustomFieldsPicklistDomIds
 } from './custom-fields-page'
+import { buildMatterCombinedTablePayload } from './matter-combined-table'
 
 const MCF_CF_PICKLIST_IDS: CustomFieldsPicklistDomIds = {
   scopeSelectId: 'mcf-custom-fields-scope',
@@ -281,6 +283,14 @@ export function getMatterCustomFieldsPageHtml(): string {
         checkboxesId: 'mcf-custom-fields-checkboxes',
         hintId: 'mcf-cf-all-hint'
       })}
+
+      <div class="form-actions rr-compile-actions">
+        <button type="button" id="mcf-fetch-records-btn" class="button">Fetch records</button>
+        <span class="rr-compile-fetch-status" id="mcf-fetch-status" aria-live="polite"></span>
+        <button type="button" id="mcf-open-table-btn" class="button" hidden>
+          Open table
+        </button>
+      </div>
     </div>
   `
 }
@@ -436,4 +446,124 @@ export function setupMatterCustomFieldsPage(): void {
   })
 
   setupCustomFieldsPicklistSection(MCF_CF_PICKLIST_IDS)
+
+  const mcfFetchBtn = document.getElementById('mcf-fetch-records-btn') as HTMLButtonElement | null
+  const mcfFetchStatusEl = document.getElementById('mcf-fetch-status')
+  const mcfOpenTableBtn = document.getElementById('mcf-open-table-btn') as HTMLButtonElement | null
+
+  let lastFetchedMatters: unknown[] = []
+  let lastDetailKeys: string[] = []
+  let lastCustomFieldIds: number[] = []
+
+  const syncOpenTableBtn = (): void => {
+    if (mcfOpenTableBtn) {
+      mcfOpenTableBtn.hidden = lastFetchedMatters.length === 0
+    }
+  }
+  syncOpenTableBtn()
+
+  mcfFetchBtn?.addEventListener('click', () => {
+    void (async () => {
+      const detailKeys = getSelectedMcfGeneralDetailKeys()
+      const cfSel = getSelectedMcfCustomFieldsPicklist()
+      const customFieldIds = resolveCustomFieldClioIdsForRequest(cfSel)
+      const allMatters = allMattersEl.checked
+
+      if (detailKeys.length === 0) {
+        if (mcfFetchStatusEl) {
+          mcfFetchStatusEl.textContent = 'Select at least one general detail field.'
+          mcfFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+        return
+      }
+
+      if (cfSel.mode === 'specific' && customFieldIds.length === 0) {
+        if (mcfFetchStatusEl) {
+          mcfFetchStatusEl.textContent = 'Select at least one custom field with a Clio id.'
+          mcfFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+        return
+      }
+
+      if (!allMatters && state.selected.length === 0) {
+        if (mcfFetchStatusEl) {
+          mcfFetchStatusEl.textContent = 'Add at least one matter or choose All Matters.'
+          mcfFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+        return
+      }
+
+      lastFetchedMatters = []
+      lastDetailKeys = []
+      lastCustomFieldIds = []
+      syncOpenTableBtn()
+
+      if (mcfFetchStatusEl) {
+        mcfFetchStatusEl.classList.remove('rr-compile-fetch-status--error')
+        mcfFetchStatusEl.textContent = ''
+      }
+      if (mcfFetchBtn) mcfFetchBtn.disabled = true
+
+      const matterStatusTrimmed = matterStatusEl.value.trim()
+      const matterStatus = matterStatusTrimmed !== '' ? matterStatusTrimmed : undefined
+
+      const dateRangeActive = shouldEnableMatterDateRangeFilters(matterStatusTrimmed, allMatters)
+      const mcfDateStart = document.getElementById('mcf-date-start') as HTMLInputElement | null
+      const mcfDateEnd = document.getElementById('mcf-date-end') as HTMLInputElement | null
+      const openDateAfter = dateRangeActive && mcfDateStart?.value ? mcfDateStart.value : undefined
+      const openDateBefore = dateRangeActive && mcfDateEnd?.value ? mcfDateEnd.value : undefined
+
+      try {
+        const result = await window.api.clio.fetchMatterCombinedReport({
+          allMatters,
+          matterDisplayNumbers: state.selected.map((m) => m.display_number),
+          matterStatus,
+          detailKeys,
+          customFieldIds,
+          openDateAfter,
+          openDateBefore
+        })
+
+        if (result.error) {
+          if (mcfFetchStatusEl) {
+            mcfFetchStatusEl.textContent = result.error
+            mcfFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+          }
+          return
+        }
+
+        lastFetchedMatters = Array.isArray(result.data) ? result.data : []
+        lastDetailKeys = detailKeys
+        lastCustomFieldIds = customFieldIds
+
+        if (mcfFetchStatusEl) {
+          mcfFetchStatusEl.textContent = `No. of records fetched: ${result.recordCount}`
+          mcfFetchStatusEl.classList.remove('rr-compile-fetch-status--error')
+        }
+        syncOpenTableBtn()
+      } catch (e) {
+        if (mcfFetchStatusEl) {
+          mcfFetchStatusEl.textContent = e instanceof Error ? e.message : 'Request failed'
+          mcfFetchStatusEl.classList.add('rr-compile-fetch-status--error')
+        }
+      } finally {
+        if (mcfFetchBtn) mcfFetchBtn.disabled = false
+      }
+    })()
+  })
+
+  mcfOpenTableBtn?.addEventListener('click', () => {
+    if (lastFetchedMatters.length === 0) return
+    const { columns, records } = buildMatterCombinedTablePayload(
+      lastFetchedMatters,
+      lastDetailKeys,
+      lastCustomFieldIds
+    )
+    void window.api.openTableResults({
+      title: 'Matter + Custom Fields',
+      columns,
+      records,
+      csvBaseName: 'matter-custom-fields'
+    })
+  })
 }

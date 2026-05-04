@@ -1,5 +1,6 @@
 import { setupMatterDateRangePicker } from './matter-date-range-ui'
 import { MATTER_STATUS_OPTIONS_HTML, type MatterPickerRow } from './matters-selection-shared'
+import { buildMatterGeneralDetailsCheckboxesHtml } from './matter-general-details-shared'
 
 interface Elements {
   input: HTMLInputElement
@@ -130,6 +131,20 @@ function renderChipRow(els: Elements, state: UiState): void {
   }
 }
 
+function mcfGeneralDetailsCheckboxesHtml(): string {
+  return buildMatterGeneralDetailsCheckboxesHtml(escapeHtml, {
+    checkboxClass: 'mcf-gd-cb',
+    rowClass: 'mcf-gd-row'
+  })
+}
+
+/** Selected general-detail API keys (matches Matters page semantics). */
+export function getSelectedMcfGeneralDetailKeys(): string[] {
+  return Array.from(document.querySelectorAll<HTMLInputElement>('#mcf-general-details-panel .mcf-gd-cb:checked'))
+    .map((cb) => cb.dataset.gdKey ?? '')
+    .filter((k) => k.length > 0)
+}
+
 export function getMatterCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
@@ -226,6 +241,16 @@ export function getMatterCustomFieldsPageHtml(): string {
           </div>
           <p class="rr-hint">Search by matter display ID. Choose from the list or press Enter. Add more using the same field.</p>
           <div class="rr-status" id="mcf-matter-input-status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="rr-section rr-section--general-details" aria-labelledby="mcf-section-gd-title">
+        <h2 class="rr-section-title" id="mcf-section-gd-title">General Details</h2>
+        <p class="rr-cf-all-hint" style="margin-top:0;margin-bottom:12px">
+          Choose which matter fields to load. Only selected fields are requested from Clio.
+        </p>
+        <div id="mcf-general-details-panel" class="rr-custom-fields-panel" role="group" aria-label="General matter fields">
+          ${mcfGeneralDetailsCheckboxesHtml()}
         </div>
       </section>
     </div>

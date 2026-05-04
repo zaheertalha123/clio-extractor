@@ -13,6 +13,7 @@ import {
 import { getSchemaPageHtml, setupSchemaListeners } from './schema'
 import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
 import { getMattersPageHtml, setupMattersPage } from './matters-page'
+import { getMatterCustomFieldsPageHtml, setupMatterCustomFieldsPage } from './matter-custom-fields-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
 type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields' | 'matter-custom-fields'
@@ -58,14 +59,6 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
     title: 'Matter+Custom Fields',
     description: 'Matter and custom fields export (coming soon).'
   }
-}
-
-function getMatterCustomFieldsPageHtml(): string {
-  return `
-    <div class="page-header">
-      <h1 class="page-title">Matter+Custom Fields</h1>
-    </div>
-  `
 }
 
 function getHomePageHtml(): string {
@@ -340,6 +333,9 @@ async function loadPage(pageId: PageId): Promise<void> {
   }
   if (pageId === 'custom-fields') {
     setupCustomFieldsPage()
+  }
+  if (pageId === 'matter-custom-fields') {
+    setupMatterCustomFieldsPage()
   }
 }
 

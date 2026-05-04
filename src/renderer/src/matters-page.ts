@@ -190,7 +190,7 @@ export function getMattersPageHtml(): string {
   return `
     <div class="page-header">
       <h1 class="page-title">Matters</h1>
-      <p class="page-description">Filter by matter status, search by Matter ID (display number), or include all matters.</p>
+      <p class="page-description">Filter by matter status, search by Matter ID (display number), or include all matters. Select general detail fields, then fetch records or open the results table.</p>
     </div>
     <div class="matters-page-form custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="mat-section-matter-title">

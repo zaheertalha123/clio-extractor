@@ -364,7 +364,7 @@ export function getCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
       <h1 class="page-title">Custom Fields</h1>
-      <p class="page-description">Choose matters below, then select custom fields and fetch. This page’s matter list is separate from the <strong>Matters</strong> page.</p>
+      <p class="page-description">Choose matters below, select custom fields, then fetch records or open the results table.</p>
     </div>
     <div class="custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="rr-section-matter-title">

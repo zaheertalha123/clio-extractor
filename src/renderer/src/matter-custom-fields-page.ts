@@ -169,7 +169,7 @@ export function getMatterCustomFieldsPageHtml(): string {
   return `
     <div class="page-header">
       <h1 class="page-title">Matter+Custom Fields</h1>
-      <p class="page-description">Choose matters, general detail fields, and custom fields — same controls as the Matters and Custom Fields pages. Fetch actions will be wired next.</p>
+      <p class="page-description">Choose matters, general detail fields, and custom fields — same controls as the Matters and Custom Fields pages.</p>
     </div>
     <div class="custom-fields-page-form">
       <section class="rr-section rr-section--matter" aria-labelledby="mcf-section-matter-title">

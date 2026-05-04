@@ -15,7 +15,7 @@ import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-
 import { getMattersPageHtml, setupMattersPage } from './matters-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields'
+type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields' | 'matter-custom-fields'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -53,7 +53,19 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   'custom-fields': {
     title: 'Custom Fields',
     description: 'Fetch and export Matter custom field values for selected matters.'
+  },
+  'matter-custom-fields': {
+    title: 'Matter+Custom Fields',
+    description: 'Matter and custom fields export (coming soon).'
   }
+}
+
+function getMatterCustomFieldsPageHtml(): string {
+  return `
+    <div class="page-header">
+      <h1 class="page-title">Matter+Custom Fields</h1>
+    </div>
+  `
 }
 
 function getHomePageHtml(): string {
@@ -74,6 +86,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'firm-revenue') return getFirmRevenueFormHtml()
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
   if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
+  if (pageId === 'matter-custom-fields') return getMatterCustomFieldsPageHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
 }
 

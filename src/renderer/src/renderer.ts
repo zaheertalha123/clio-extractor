@@ -14,9 +14,10 @@ import { getSchemaPageHtml, setupSchemaListeners } from './schema'
 import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
 import { getMattersPageHtml, setupMattersPage } from './matters-page'
 import { getMatterCustomFieldsPageHtml, setupMatterCustomFieldsPage } from './matter-custom-fields-page'
+import { getActivitiesPageHtml } from './activities-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
-type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields' | 'matter-custom-fields'
+type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields' | 'matter-custom-fields' | 'activities'
 
 interface CachedOptions {
   users: Array<{ id: number; name: string }>
@@ -58,6 +59,10 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   'matter-custom-fields': {
     title: 'Matter+Custom Fields',
     description: 'Matter and custom fields export (coming soon).'
+  },
+  activities: {
+    title: 'Activities',
+    description: 'Activities export.'
   }
 }
 
@@ -80,6 +85,7 @@ function renderPageContent(pageId: PageId): string {
   if (pageId === 'unpaid-bills') return getUnpaidBillsFormHtml()
   if (pageId === 'custom-fields') return getCustomFieldsPageHtml()
   if (pageId === 'matter-custom-fields') return getMatterCustomFieldsPageHtml()
+  if (pageId === 'activities') return getActivitiesPageHtml()
   return '<div class="page-body"><p class="text">Page not found.</p></div>'
 }
 

@@ -476,6 +476,44 @@ function registerAppIpcHandlers(): void {
   )
 
   ipcMain.handle(
+    'clio:fetch-activities-report',
+    async (
+      _event,
+      payload: {
+        fieldKeys: string[]
+        activityType?: 'TimeEntry' | 'ExpenseEntry'
+        startDate: string
+        endDate: string
+      }
+    ) => {
+      if (!apiClient) {
+        return { data: [], recordCount: 0, error: 'API not initialized' }
+      }
+      const startDate =
+        typeof payload?.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.startDate.trim())
+          ? payload.startDate.trim()
+          : ''
+      const endDate =
+        typeof payload?.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.endDate.trim())
+          ? payload.endDate.trim()
+          : ''
+      if (!startDate || !endDate) {
+        return { data: [], recordCount: 0, error: 'Invalid activity date range' }
+      }
+      const activityType =
+        payload?.activityType === 'TimeEntry' || payload?.activityType === 'ExpenseEntry'
+          ? payload.activityType
+          : undefined
+      return await apiClient.fetchActivitiesReport({
+        fieldKeys: Array.isArray(payload?.fieldKeys) ? payload.fieldKeys : [],
+        activityType,
+        startDate,
+        endDate
+      })
+    }
+  )
+
+  ipcMain.handle(
     'clio:fetch-matter-combined-report',
     async (
       _event,

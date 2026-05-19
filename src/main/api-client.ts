@@ -16,6 +16,11 @@ import {
   type MatterCombinedFetchInput,
   type MatterCombinedFetchResult
 } from './api/matters/matter-combined-fetch'
+import {
+  fetchActivities,
+  type ActivitiesFetchInput,
+  type ActivitiesFetchResult
+} from './api/activities/activities-fetch'
 
 class ClioAPIClient {
   private authManager: ClioAuthManager
@@ -155,6 +160,10 @@ class ClioAPIClient {
       (endpoint, options) => this.makeRequest(endpoint, options),
       params
     )
+  }
+
+  async fetchActivitiesReport(params: ActivitiesFetchInput): Promise<ActivitiesFetchResult> {
+    return fetchActivities((endpoint, options) => this.makeRequest(endpoint, options), params)
   }
 
   /**

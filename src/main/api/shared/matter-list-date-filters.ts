@@ -12,7 +12,7 @@ export function matterListOrderForStatus(matterStatus?: string): string {
 }
 
 /** `YYYY-MM-DD` → start of that day in local time, as ISO string for Clio. */
-function startOfLocalDayIso(dateStr: string): string | null {
+export function startOfLocalDayIso(dateStr: string): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim())
   if (!m) return null
   const y = Number(m[1])

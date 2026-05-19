@@ -369,7 +369,8 @@
 /* `.button { display: inline-block }` can override UA `[hidden]`; keep these hidden until shown in JS */
 #rr-compile-report-btn[hidden],
 #mat-open-table-btn[hidden],
-#mcf-open-table-btn[hidden] {
+#mcf-open-table-btn[hidden],
+#act-open-table-btn[hidden] {
   display: none !important;
 }
 

@@ -60,6 +60,12 @@ interface ClioAPI {
     openDateAfter?: string
     openDateBefore?: string
   }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
+  fetchActivitiesReport: (payload: {
+    fieldKeys: string[]
+    activityType?: 'TimeEntry' | 'ExpenseEntry'
+    startDate: string
+    endDate: string
+  }) => Promise<{ data: unknown[]; recordCount: number; error?: string }>
 }
 
 interface ResultsAPI {

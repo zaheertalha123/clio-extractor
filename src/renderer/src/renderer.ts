@@ -62,7 +62,7 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   },
   activities: {
     title: 'Activities',
-    description: 'Fetch time entries and expenses for selected matters.'
+    description: 'Fetch time entries and expenses by type and date range.'
   }
 }
 

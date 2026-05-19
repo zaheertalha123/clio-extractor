@@ -56,7 +56,13 @@ const api = {
       customFieldIds: number[]
       openDateAfter?: string
       openDateBefore?: string
-    }) => ipcRenderer.invoke('clio:fetch-matter-combined-report', payload)
+    }) => ipcRenderer.invoke('clio:fetch-matter-combined-report', payload),
+    fetchActivitiesReport: (payload: {
+      fieldKeys: string[]
+      activityType?: 'TimeEntry' | 'ExpenseEntry'
+      startDate: string
+      endDate: string
+    }) => ipcRenderer.invoke('clio:fetch-activities-report', payload)
   },
   results: {
     onResultsData: (callback: (data: unknown[]) => void) => {

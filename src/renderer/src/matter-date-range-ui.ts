@@ -1,5 +1,16 @@
 import { shouldEnableMatterDateRangeFilters } from './matters-selection-shared'
 
+export interface StandaloneDateRangeIds {
+  fieldWrapId: string
+  displayId: string
+  openBtnId: string
+  popoverId: string
+  startInputId: string
+  endInputId: string
+  applyBtnId: string
+  clearBtnId: string
+}
+
 export interface MatterDateRangeIds {
   /** Wrapper with position relative for popover */
   fieldWrapId: string
@@ -31,6 +42,87 @@ function updateRangeDisplay(displayEl: HTMLElement, startVal: string, endVal: st
     return
   }
   displayEl.textContent = `${formatUsFromYmd(startVal)} to ${formatUsFromYmd(endVal)}`
+}
+
+/**
+ * Date Range popover always enabled (e.g. Activities filters).
+ */
+export function setupStandaloneDateRangePicker(ids: StandaloneDateRangeIds): {
+  getRange: () => { startDate: string; endDate: string }
+} | null {
+  const fieldWrap = document.getElementById(ids.fieldWrapId)
+  const displayEl = document.getElementById(ids.displayId)
+  const openBtn = document.getElementById(ids.openBtnId) as HTMLButtonElement | null
+  const popover = document.getElementById(ids.popoverId)
+  const startInput = document.getElementById(ids.startInputId) as HTMLInputElement | null
+  const endInput = document.getElementById(ids.endInputId) as HTMLInputElement | null
+  const applyBtn = document.getElementById(ids.applyBtnId) as HTMLButtonElement | null
+  const clearBtn = document.getElementById(ids.clearBtnId) as HTMLButtonElement | null
+
+  if (!fieldWrap || !displayEl || !openBtn || !popover || !startInput || !endInput || !applyBtn || !clearBtn) {
+    return null
+  }
+
+  const closePopover = (): void => {
+    popover.hidden = true
+    openBtn.setAttribute('aria-expanded', 'false')
+  }
+
+  const openPopover = (): void => {
+    popover.hidden = false
+    openBtn.setAttribute('aria-expanded', 'true')
+  }
+
+  openBtn.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (popover.hidden) {
+      openPopover()
+    } else {
+      closePopover()
+    }
+  })
+
+  applyBtn.addEventListener('click', (e) => {
+    e.preventDefault()
+    updateRangeDisplay(displayEl, startInput.value, endInput.value)
+    closePopover()
+  })
+
+  clearBtn.addEventListener('click', (e) => {
+    e.preventDefault()
+    startInput.value = ''
+    endInput.value = ''
+    updateRangeDisplay(displayEl, '', '')
+    closePopover()
+  })
+
+  document.addEventListener('click', (e) => {
+    if (popover.hidden) return
+    if (!fieldWrap.contains(e.target as Node)) {
+      closePopover()
+    }
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (popover.hidden) return
+    if (e.key === 'Escape') {
+      closePopover()
+    }
+  })
+
+  popover.addEventListener('click', (e) => {
+    e.stopPropagation()
+  })
+
+  updateRangeDisplay(displayEl, startInput.value, endInput.value)
+
+  return {
+    getRange: () => ({
+      startDate: startInput.value.trim(),
+      endDate: endInput.value.trim()
+    })
+  }
 }
 
 /**

@@ -14,7 +14,7 @@ import { getSchemaPageHtml, setupSchemaListeners } from './schema'
 import { getCustomFieldsPageHtml, setupCustomFieldsPage } from './custom-fields-page'
 import { getMattersPageHtml, setupMattersPage } from './matters-page'
 import { getMatterCustomFieldsPageHtml, setupMatterCustomFieldsPage } from './matter-custom-fields-page'
-import { getActivitiesPageHtml } from './activities-page'
+import { getActivitiesPageHtml, setupActivitiesPage } from './activities-page'
 import logoUrl from '../assets/clio-extractor-logo.png'
 
 type PageId = 'home' | 'schema' | 'matters' | 'firm-revenue' | 'unpaid-bills' | 'custom-fields' | 'matter-custom-fields' | 'activities'
@@ -62,7 +62,7 @@ const PAGES: Record<PageId, { title: string; description: string }> = {
   },
   activities: {
     title: 'Activities',
-    description: 'Activities export.'
+    description: 'Fetch time entries and expenses for selected matters.'
   }
 }
 
@@ -342,6 +342,9 @@ async function loadPage(pageId: PageId): Promise<void> {
   }
   if (pageId === 'matter-custom-fields') {
     setupMatterCustomFieldsPage()
+  }
+  if (pageId === 'activities') {
+    setupActivitiesPage()
   }
 }
 

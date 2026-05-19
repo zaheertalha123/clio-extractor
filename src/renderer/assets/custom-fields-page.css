@@ -345,6 +345,17 @@
   width: 100%;
 }
 
+.rr-activities-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 24px;
+  align-items: start;
+}
+
+.rr-activities-filters .rr-date-range-group {
+  margin-top: 0;
+}
+
 .custom-fields-page-form .rr-compile-actions {
   padding-top: 0;
   margin: 0;
